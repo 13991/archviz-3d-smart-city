@@ -1,0 +1,2456 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#080f1d" />
+  <title>CITYVERSE — Nova City Digital Twin v4</title>
+
+  <!-- Pinned CDN imports: no build tools, npm, models, images, or backend. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080f1d;
+      --panel: rgba(15, 25, 43, .92);
+      --panel-2: #111e32;
+      --line: rgba(153, 183, 218, .14);
+      --line-strong: rgba(153, 183, 218, .25);
+      --text: #edf4ff;
+      --muted: #8b9cb6;
+      --muted-2: #657792;
+      --cyan: #5fe4e8;
+      --blue: #7197ff;
+      --green: #8de2bd;
+      --amber: #ffbf69;
+      --red: #ff777d;
+      --radius: 16px;
+      --shadow: 0 14px 40px rgba(0,0,0,.22);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); }
+    body {
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      background:
+        radial-gradient(ellipse at 45% -18%, rgba(42, 97, 146, .23), transparent 46%),
+        radial-gradient(ellipse at 100% 100%, rgba(57, 104, 143, .08), transparent 40%),
+        var(--bg);
+      overflow-x: hidden;
+    }
+
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 2px solid var(--cyan); outline-offset: 2px;
+    }
+    .app-header {
+      min-height: 68px; padding: 13px 22px; display: flex; align-items: center; gap: 14px;
+      border-bottom: 1px solid rgba(153,183,218,.10); background: rgba(8,15,29,.7);
+      backdrop-filter: blur(18px); position: relative; z-index: 3;
+    }
+    .brand-mark {
+      width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center;
+      border: 1px solid rgba(95,228,232,.45); border-radius: 13px;
+      background: linear-gradient(145deg, rgba(95,228,232,.17), rgba(113,151,255,.08));
+      box-shadow: inset 0 0 22px rgba(95,228,232,.07), 0 0 22px rgba(95,228,232,.05);
+    }
+    .brand-mark svg { width: 25px; height: 25px; }
+    .brand-copy { min-width: 0; }
+    .eyebrow { font-size: 9px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; color: var(--cyan); }
+    .brand-title { margin-top: 3px; font-size: 17px; font-weight: 720; letter-spacing: -.025em; }
+    .brand-subtitle { margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .header-spacer { flex: 1; }
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 11px; border-radius: 999px;
+      border: 1px solid rgba(141,226,189,.22); color: #bcefd8; background: rgba(57,138,109,.09);
+      font-size: 10px; font-weight: 700; letter-spacing: .04em; white-space: nowrap;
+    }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #78edb7; box-shadow: 0 0 12px #78edb7; }
+    .header-chip {
+      padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); color: var(--muted);
+      font-size: 10px; white-space: nowrap; background: rgba(255,255,255,.02);
+    }
+
+    .app-layout {
+      display: grid; grid-template-columns: 252px minmax(360px, 1fr) 300px; gap: 13px;
+      padding: 13px; height: calc(100vh - 68px); min-height: 690px; max-height: 1100px;
+    }
+    .panel {
+      min-width: 0; min-height: 0; overflow: hidden; border-radius: var(--radius);
+      border: 1px solid var(--line); background: linear-gradient(155deg, rgba(19,31,52,.96), rgba(12,21,37,.96));
+      box-shadow: var(--shadow);
+    }
+    .left-panel, .right-panel { display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #2a3a52 transparent; }
+    .panel-section { padding: 15px; border-bottom: 1px solid var(--line); }
+    .panel-section:last-child { border-bottom: 0; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+    .section-heading h2 { margin: 0; color: #dce8fb; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .section-count { color: var(--muted-2); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .field-label { display: block; margin: 11px 0 7px; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .045em; }
+    .search-wrap { position: relative; }
+    .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #7e91ad; pointer-events: none; font-size: 18px; }
+    .search-input, .select-input {
+      width: 100%; min-height: 39px; border: 1px solid var(--line-strong); border-radius: 10px;
+      background: rgba(5,12,23,.55); color: var(--text); padding: 9px 11px; outline: none;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    .search-input { padding-left: 35px; }
+    .search-input::placeholder { color: #61738d; }
+    .search-input:focus, .select-input:focus { border-color: rgba(95,228,232,.55); box-shadow: 0 0 0 3px rgba(95,228,232,.07); }
+    .select-input { cursor: pointer; }
+    .result-summary { margin: 12px 0 8px; color: var(--muted); font-size: 10px; display: flex; justify-content: space-between; }
+    .result-list { list-style: none; display: grid; gap: 5px; margin: 0; padding: 0; }
+    .result-item { min-width: 0; }
+    .result-button {
+      display: flex; align-items: center; width: 100%; gap: 10px; text-align: left; padding: 9px 9px;
+      min-height: 51px; border: 1px solid transparent; border-radius: 11px; background: transparent;
+      cursor: pointer; transition: background .18s, border-color .18s, transform .18s;
+    }
+    .result-button:hover { background: rgba(255,255,255,.045); border-color: var(--line); transform: translateX(2px); }
+    .result-button.selected { background: linear-gradient(100deg, rgba(95,228,232,.13), rgba(95,228,232,.035)); border-color: rgba(95,228,232,.27); }
+    .result-glyph { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 9px; background: rgba(113,151,255,.10); border: 1px solid rgba(113,151,255,.16); }
+    .result-glyph svg { width: 16px; height: 16px; }
+    .result-copy { min-width: 0; flex: 1; }
+    .result-name { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #dce7fa; font-size: 11px; font-weight: 700; }
+    .result-meta { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; }
+    .result-arrow { color: #5f7593; font-size: 15px; }
+    .empty-results { padding: 14px 9px; border: 1px dashed var(--line-strong); border-radius: 10px; color: var(--muted); line-height: 1.5; font-size: 11px; }
+
+    .layer-list { display: grid; gap: 8px; }
+    .layer-row {
+      width: 100%; display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 11px;
+      border: 1px solid var(--line); background: rgba(255,255,255,.018); text-align: left; cursor: pointer;
+      transition: border-color .18s, background .18s;
+    }
+    .layer-row:hover { background: rgba(255,255,255,.045); }
+    .layer-row.active { border-color: rgba(95,228,232,.29); background: rgba(95,228,232,.065); }
+    .layer-symbol { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: rgba(95,228,232,.09); color: var(--cyan); flex: 0 0 28px; font-size: 14px; }
+    .layer-copy { flex: 1; min-width: 0; }
+    .layer-name { display: block; color: #dce7f8; font-size: 11px; font-weight: 700; }
+    .layer-description { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+    .switch { width: 27px; height: 16px; padding: 2px; border: 1px solid #394b63; border-radius: 99px; background: #202e43; flex: 0 0 27px; transition: .18s; }
+    .switch::after { content: ""; display: block; width: 10px; height: 10px; border-radius: 50%; background: #8294ab; transition: transform .18s, background .18s; }
+    .layer-row.active .switch { background: rgba(95,228,232,.2); border-color: rgba(95,228,232,.55); }
+    .layer-row.active .switch::after { transform: translateX(11px); background: var(--cyan); }
+
+    .scenario-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .scenario-number { font: 700 13px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--amber); }
+    .scenario-slider { width: 100%; accent-color: var(--cyan); margin: 14px 0 7px; cursor: pointer; }
+    .range-ends { display: flex; justify-content: space-between; color: var(--muted-2); font-size: 9px; }
+    .scenario-note { margin-top: 11px; padding: 9px 10px; border-radius: 9px; color: #91a2bb; font-size: 10px; line-height: 1.5; background: rgba(255,191,105,.055); border: 1px solid rgba(255,191,105,.12); }
+    .small-muted { color: var(--muted-2); font-size: 9px; line-height: 1.5; }
+    .intervention-select { margin-top: 10px; }
+    .intervention-note { margin-top: 9px; min-height: 54px; padding: 10px; border-radius: 10px; border: 1px solid rgba(95,228,232,.16); background: linear-gradient(120deg,rgba(95,228,232,.07),rgba(113,151,255,.035)); color: #a9bfd0; font-size: 10px; line-height: 1.5; }
+    .intervention-note strong { color: #d8f6f4; }
+    .impact-strip { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+    .impact-chip { border:1px solid rgba(95,228,232,.18); background:rgba(95,228,232,.055); border-radius:7px; padding:5px 7px; color:#a8dfe0; font:9px ui-monospace,monospace; }
+    .tour-status { position:absolute; z-index:2; top:72px; right:14px; width:min(250px,48%); padding:11px 13px; border-radius:11px; border:1px solid rgba(95,228,232,.28); background:rgba(5,13,24,.82); backdrop-filter:blur(14px); box-shadow:0 10px 30px rgba(0,0,0,.22); pointer-events:none; }
+    .tour-status[hidden] { display:none; }
+    .tour-status .tour-kicker { color:var(--cyan); font-size:8px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; }
+    .tour-status strong { display:block; margin-top:5px; color:#edf7ff; font-size:12px; }
+    .tour-status span { display:block; margin-top:4px; color:#91a7bf; font-size:9px; line-height:1.45; }
+    .tour-progress { height:2px; margin-top:9px; border-radius:9px; background:rgba(255,255,255,.10); overflow:hidden; }
+    .tour-progress i { display:block; height:100%; width:0; background:linear-gradient(90deg,#5fe4e8,#7197ff); }
+
+    .center-column { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+    .kpi-card {
+      min-width: 0; position: relative; padding: 13px 13px 12px; border-radius: 13px; overflow: hidden;
+      border: 1px solid var(--line); background: linear-gradient(140deg, rgba(20,34,56,.95), rgba(12,22,38,.92));
+    }
+    .kpi-card::before { content: ""; position: absolute; width: 54px; height: 54px; right: -18px; top: -22px; border-radius: 50%; background: var(--accent, var(--cyan)); opacity: .09; filter: blur(1px); }
+    .kpi-label { position: relative; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .105em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .kpi-value { position: relative; margin-top: 8px; font-size: clamp(16px, 1.5vw, 22px); font-weight: 750; letter-spacing: -.035em; white-space: nowrap; }
+    .kpi-foot { position: relative; margin-top: 4px; color: var(--muted-2); font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .scene-panel { position: relative; min-height: 0; overflow: hidden; border-radius: var(--radius); border: 1px solid rgba(133,174,217,.19); background: #111923; box-shadow: var(--shadow); }
+    #scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
+    #scene-frame canvas { display: block; width: 100%; height: 100%; outline: none; }
+    .scene-vignette { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(10,17,22,.32), transparent 18%, transparent 78%, rgba(10,17,22,.34)); }
+    .scene-topline { position: absolute; top: 13px; left: 14px; right: 14px; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; pointer-events: none; }
+    .scene-location { display: flex; align-items: center; gap: 9px; padding: 8px 11px; border-radius: 10px; background: rgba(8,16,29,.66); border: 1px solid rgba(155,190,222,.17); backdrop-filter: blur(10px); }
+    .location-mark { width: 8px; height: 8px; border: 2px solid var(--cyan); border-radius: 50%; box-shadow: 0 0 12px rgba(95,228,232,.7); }
+    .scene-location strong { display: block; font-size: 10px; letter-spacing: .09em; text-transform: uppercase; }
+    .scene-location span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+    .scene-hint { padding: 8px 10px; border: 1px solid rgba(155,190,222,.13); border-radius: 9px; background: rgba(8,16,29,.56); color: #9badc5; font-size: 9px; white-space: nowrap; backdrop-filter: blur(10px); }
+    .scene-actions { position: absolute; top: 72px; left: 14px; display: flex; flex-wrap: wrap; gap: 7px; max-width: calc(100% - 28px); }
+    /* Fullscreen is scoped to the 3D viewport; dashboard panels remain outside it. */
+    .scene-panel:fullscreen {
+      width: 100vw; height: 100vh; min-height: 0; max-height: none;
+      border: 0; border-radius: 0; box-shadow: none; background: #111923;
+    }
+    .scene-panel.scene-expanded {
+      position: fixed; inset: 0; z-index: 9999; width: 100vw; height: 100vh;
+      min-height: 0; max-height: none; border: 0; border-radius: 0; box-shadow: none;
+    }
+    body.city-fullscreen { overflow: hidden; }
+    .scene-panel:fullscreen #scene-frame,
+    .scene-panel.scene-expanded #scene-frame { position: absolute; inset: 0; }
+    .scene-button, .utility-button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(150,184,219,.20);
+      background: rgba(11,21,37,.78); color: #c2d2e9; padding: 8px 10px; border-radius: 9px; cursor: pointer;
+      font-size: 10px; font-weight: 700; backdrop-filter: blur(10px); transition: background .18s, border-color .18s, transform .18s;
+    }
+    .scene-button:hover, .utility-button:hover { border-color: rgba(95,228,232,.44); color: white; background: rgba(23,48,68,.9); }
+    .scene-button:active, .utility-button:active { transform: translateY(1px); }
+    .scene-button.underground-button { border-color: rgba(114,231,226,.34); color: #b8f5ef; background: linear-gradient(120deg, rgba(26,79,82,.68), rgba(20,41,57,.8)); }
+    .scene-button.underground-button.active { border-color: #72e7e2; color: #efffff; box-shadow: 0 0 24px rgba(114,231,226,.22), inset 0 0 18px rgba(114,231,226,.1); }
+    .scene-button.pulse-button { border-color: rgba(255,191,105,.34); color: #ffe0ad; background: linear-gradient(120deg, rgba(126,74,38,.68), rgba(20,41,57,.8)); box-shadow: 0 0 18px rgba(255,191,105,.08); }
+    .scene-button.pulse-button:hover { border-color: rgba(255,213,145,.78); background: linear-gradient(120deg, rgba(158,91,42,.82), rgba(25,51,67,.92)); }
+    .scene-button.pulse-button.active { color: #fff3d4; border-color: #ffbf69; box-shadow: 0 0 24px rgba(255,191,105,.25), inset 0 0 18px rgba(255,191,105,.1); }
+    .pulse-status { position: absolute; top: 126px; right: 14px; width: 190px; padding: 11px 12px; border: 1px solid rgba(255,191,105,.3); border-radius: 11px; background: rgba(17,25,35,.76); box-shadow: 0 0 28px rgba(255,191,105,.1); backdrop-filter: blur(12px); pointer-events: none; }
+    .pulse-status[hidden] { display: none; }
+    .pulse-status .pulse-kicker { color: #ffbf69; font-size: 8px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    .pulse-status strong { display: block; margin-top: 5px; color: #fff2d6; font-size: 13px; }
+    .pulse-status span { display: block; margin-top: 4px; color: #b6c4d2; font-size: 9px; line-height: 1.45; }
+    .pulse-meter { height: 3px; margin-top: 9px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.1); }
+    .pulse-meter i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #ffbf69, #5fe4e8); }
+    .scene-bottom {
+      position: absolute; left: 14px; right: 14px; bottom: 13px; display: flex; align-items: flex-end;
+      justify-content: space-between; gap: 12px; pointer-events: none;
+    }
+    .scene-legend { display: flex; flex-wrap: wrap; gap: 7px; padding: 8px 10px; border-radius: 9px; background: rgba(8,16,29,.75); border: 1px solid rgba(155,190,222,.15); backdrop-filter: blur(10px); }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; color: #a5b6cd; }
+    .legend-dot { width: 6px; height: 6px; display: inline-block; border-radius: 2px; }
+    .scene-scale { border: 1px solid rgba(155,190,222,.13); border-radius: 9px; background: rgba(8,16,29,.65); padding: 8px 10px; color: #9badc5; font: 9px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+    .scene-scale b { color: var(--cyan); font-weight: 700; }
+
+    .right-panel .panel-section { padding: 15px; }
+    .selected-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .selected-title { min-width: 0; }
+    .selected-title h2 { margin: 4px 0 0; font-size: 19px; line-height: 1.18; letter-spacing: -.035em; font-weight: 750; overflow-wrap: anywhere; }
+    .micro-label { color: var(--cyan); font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .asset-id { color: #6f829e; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 6px; }
+    .category-badge { display: inline-flex; align-items: center; gap: 6px; margin-top: 11px; padding: 6px 8px; border: 1px solid rgba(95,228,232,.2); border-radius: 7px; color: #a7e9eb; background: rgba(95,228,232,.07); font-size: 9px; font-weight: 700; }
+    .category-badge .legend-dot { border-radius: 50%; width: 6px; height: 6px; background: var(--cyan); }
+    .asset-summary { margin-top: 13px; color: #97a9c2; font-size: 11px; line-height: 1.55; }
+    .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-top: 14px; }
+    .metric-box { min-width: 0; padding: 11px; border-radius: 11px; border: 1px solid var(--line); background: rgba(5,12,22,.35); }
+    .metric-label { color: var(--muted); font-size: 9px; }
+    .metric-value { margin-top: 6px; font-size: 17px; font-weight: 750; letter-spacing: -.025em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .metric-unit { margin-left: 3px; color: var(--muted); font-size: 9px; font-weight: 500; letter-spacing: 0; }
+    .metric-foot { margin-top: 5px; color: var(--muted-2); font-size: 9px; }
+    .detail-list { margin-top: 14px; display: grid; gap: 10px; }
+    .detail-row { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .detail-row .key { color: var(--muted); font-size: 10px; }
+    .detail-row .value { color: #cbd8eb; font-size: 10px; font-weight: 700; text-align: right; }
+    .progress-track { height: 4px; width: 100%; overflow: hidden; border-radius: 99px; background: rgba(135,157,189,.12); margin-top: 7px; }
+    .progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5fe4e8, #7197ff); transition: width .25s; }
+    .chart-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    .chart-head h3 { margin: 0; font-size: 11px; color: #dce8fb; }
+    .chart-tag { border: 1px solid var(--line); color: var(--muted); font-size: 9px; padding: 4px 6px; border-radius: 6px; }
+    .chart-subtitle { margin: 0 0 12px; color: var(--muted); font-size: 9px; line-height: 1.5; }
+    .chart-wrap { position: relative; height: 180px; width: 100%; }
+    #chartFallback { display: none; height: 180px; color: var(--muted); font-size: 10px; line-height: 1.5; align-content: center; }
+    .chart-foot { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); color: var(--muted-2); font-size: 9px; line-height: 1.5; }
+
+    .bottom-note { display: flex; justify-content: space-between; gap: 12px; padding: 0 4px; color: #536781; font-size: 9px; }
+    .bottom-note strong { color: #7b91ad; font-weight: 700; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 1200px) {
+      .app-layout { grid-template-columns: 225px minmax(300px, 1fr) 270px; gap: 10px; padding: 10px; }
+      .panel-section, .right-panel .panel-section { padding: 12px; }
+      .kpi-card { padding: 11px 9px; }
+      .kpi-label { font-size: 8px; }
+      .scene-hint { display: none; }
+    }
+    @media (max-width: 980px) {
+      .app-layout { height: auto; max-height: none; min-height: 0; grid-template-columns: 230px minmax(0, 1fr); align-items: stretch; }
+      .center-column { min-height: 630px; }
+      .right-panel { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); overflow: visible; }
+      .right-panel .panel-section { border-bottom: 0; }
+      .right-panel .panel-section + .panel-section { border-left: 1px solid var(--line); }
+    }
+    @media (max-width: 650px) {
+      .app-header { min-height: 62px; padding: 10px 12px; gap: 10px; }
+      .brand-mark { width: 35px; height: 35px; flex-basis: 35px; }
+      .brand-title { font-size: 14px; }
+      .brand-subtitle, .header-chip { display: none; }
+      .live-badge { padding: 7px 8px; font-size: 9px; }
+      .app-layout { display: flex; flex-direction: column; padding: 9px; gap: 10px; }
+      .left-panel { order: 2; overflow: visible; }
+      .center-column { order: 1; min-height: 590px; grid-template-rows: auto minmax(430px, 1fr); }
+      .right-panel { order: 3; display: flex; overflow: hidden; }
+      .right-panel .panel-section + .panel-section { border-left: 0; border-top: 1px solid var(--line); }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .kpi-value { font-size: 19px; }
+      .scene-actions { top: 64px; }
+      .scene-bottom { flex-direction: column; align-items: flex-start; }
+      .scene-legend { max-width: 100%; }
+      .scene-scale { display: none; }
+      .result-list { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .result-button { min-width: 0; padding: 8px 7px; }
+      .result-glyph { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none">
+        <path d="M16 3 27 9.3v13.4L16 29 5 22.7V9.3L16 3Z" stroke="#5fe4e8" stroke-width="1.4"/>
+        <path d="M16 7.5 23 11.5v9L16 24.5 9 20.5v-9l7-4Z" stroke="#7197ff" stroke-width="1.2"/>
+        <circle cx="16" cy="16" r="3" fill="#d8ffff"/>
+        <path d="M2 16h7m14 0h7M16 1v7m0 16v7" stroke="#5fe4e8" stroke-width="1" opacity=".7"/>
+      </svg>
+    </div>
+    <div class="brand-copy">
+      <div class="eyebrow">ArchViz / Urban Intelligence</div>
+      <div class="brand-title">CITYVERSE</div>
+      <div class="brand-subtitle">Nova City · Interactive urban digital twin</div>
+    </div>
+    <div class="header-spacer"></div>
+    <div class="header-chip">CITYVERSE / NOVA CITY</div>
+    <div class="live-badge"><span class="live-dot"></span> SIMULATION ACTIVE</div>
+  </header>
+
+  <main class="app-layout">
+    <!-- Left panel: search, category filters, infrastructure layers, and scenario parameter. -->
+    <aside class="panel left-panel" aria-label="City controls">
+      <section class="panel-section">
+        <div class="section-heading"><h2>City explorer</h2><span class="section-count">01 / 04</span></div>
+        <label class="field-label" for="searchInput">Search locations</label>
+        <div class="search-wrap">
+          <span class="search-icon" aria-hidden="true">⌕</span>
+          <input class="search-input" id="searchInput" type="search" placeholder="Try ‘museum’, ‘airport’, ‘hyperloop’…" autocomplete="off" />
+        </div>
+        <label class="field-label" for="categoryFilter">Category filter</label>
+        <select class="select-input" id="categoryFilter">
+          <option value="all">All categories</option>
+          <option value="Residential">Residential</option>
+          <option value="Commercial">Commercial</option>
+          <option value="Civic">Civic &amp; culture</option>
+          <option value="Transport">Transport</option>
+          <option value="Healthcare">Healthcare</option>
+          <option value="Education">Education</option>
+          <option value="Utilities">Utilities</option>
+          <option value="Leisure">Leisure</option>
+          <option value="Cultural">Cultural</option>
+        </select>
+        <div class="result-summary"><span>Mapped locations</span><span id="resultCount">13 / 13</span></div>
+        <ul class="result-list" id="resultList" aria-label="Matching city locations"></ul>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-heading"><h2>Infrastructure layers</h2><span class="section-count">02 / 04</span></div>
+        <div class="layer-list">
+          <button class="layer-row active" type="button" data-layer="traffic" aria-pressed="true">
+            <span class="layer-symbol" aria-hidden="true">↔</span><span class="layer-copy"><span class="layer-name">Traffic flow</span><span class="layer-description">Road intensity and moving vehicles</span></span><span class="switch" aria-hidden="true"></span>
+          </button>
+          <button class="layer-row" type="button" data-layer="energy" aria-pressed="false">
+            <span class="layer-symbol" aria-hidden="true">ϟ</span><span class="layer-copy"><span class="layer-name">Energy demand</span><span class="layer-description">Building load indicators</span></span><span class="switch" aria-hidden="true"></span>
+          </button>
+          <button class="layer-row" type="button" data-layer="transit" aria-pressed="false">
+            <span class="layer-symbol" aria-hidden="true">◎</span><span class="layer-copy"><span class="layer-name">Public transport</span><span class="layer-description">Transit spine and station nodes</span></span><span class="switch" aria-hidden="true"></span>
+          </button>
+          <button class="layer-row active" type="button" data-layer="hyperloop" aria-pressed="true">
+            <span class="layer-symbol" aria-hidden="true">◉</span><span class="layer-copy"><span class="layer-name">Hyperloop maglev</span><span class="layer-description">Elevated transparent tube and moving pod</span></span><span class="switch" aria-hidden="true"></span>
+          </button>
+          <button class="layer-row active" type="button" data-layer="underground" aria-pressed="true">
+            <span class="layer-symbol" aria-hidden="true">⇣</span><span class="layer-copy"><span class="layer-name">Boring Loop</span><span class="layer-description">Underground electric pods and stations</span></span><span class="switch" aria-hidden="true"></span>
+          </button>
+          <button class="layer-row active" type="button" data-layer="airMobility" aria-pressed="true">
+            <span class="layer-symbol" aria-hidden="true">✧</span><span class="layer-copy"><span class="layer-name">Aerial mobility</span><span class="layer-description">Autonomous flying-car corridor</span></span><span class="switch" aria-hidden="true"></span>
+          </button>
+          <button class="layer-row active" type="button" data-layer="streetlights" aria-pressed="true">
+            <span class="layer-symbol" aria-hidden="true">☼</span><span class="layer-copy"><span class="layer-name">Street lighting</span><span class="layer-description">Lamp glow and illuminated streets</span></span><span class="switch" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="small-muted" style="margin-top:10px">Enable multiple layers to inspect how systems overlap across the district.</div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-heading"><h2>Scenario lab</h2><span class="section-count">03 / 04</span></div>
+        <div class="scenario-head"><label class="field-label" for="congestionSlider" style="margin:0">Traffic congestion</label><span class="scenario-number" id="congestionValue">42%</span></div>
+        <input class="scenario-slider" id="congestionSlider" type="range" min="0" max="100" step="1" value="42" aria-label="Traffic congestion scenario from 0 to 100 percent" />
+        <div class="range-ends"><span>Free flow</span><span>Gridlock</span></div>
+        <div class="scenario-note" id="scenarioNote">Moderate congestion. Road heat, vehicle speed and the city traffic index respond to this scenario.</div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-heading"><h2>Intervention lab</h2><span class="section-count">04 / 05</span></div>
+        <label class="field-label" for="interventionSelect">Test an urban policy</label>
+        <select class="select-input intervention-select" id="interventionSelect">
+          <option value="none">Baseline · no intervention</option>
+          <option value="metro">Metro extension</option>
+          <option value="solar">Rooftop solar programme</option>
+          <option value="green">Green corridor expansion</option>
+        </select>
+        <div class="intervention-note" id="interventionNote"><strong>Baseline scenario.</strong> Explore the current city before applying an intervention.</div>
+        <div class="impact-strip" id="impactStrip"><span class="impact-chip">NO POLICY CHANGE</span></div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-heading"><h2>View controls</h2><span class="section-count">05 / 05</span></div>
+        <button class="utility-button" id="resetViewButton" type="button" style="width:100%"><span aria-hidden="true">⟲</span> Reset city view</button>
+        <div class="small-muted" style="margin-top:9px">Drag to orbit · Scroll to zoom · Click a building to inspect it.</div>
+      </section>
+    </aside>
+
+    <!-- Main stage: KPI dashboard and procedural 3D city. -->
+    <section class="center-column" aria-label="Three-dimensional city visualization">
+      <div class="kpi-grid" aria-label="City dashboard statistics">
+        <article class="kpi-card" style="--accent:#5fe4e8"><div class="kpi-label">Population served</div><div class="kpi-value" id="kpiPopulation">42.8k</div><div class="kpi-foot">Estimated district residents</div></article>
+        <article class="kpi-card" style="--accent:#7197ff"><div class="kpi-label">Daily footfall</div><div class="kpi-value" id="kpiFootfall">18,420</div><div class="kpi-foot">Modeled visits / day</div></article>
+        <article class="kpi-card" style="--accent:#ffbf69"><div class="kpi-label">Traffic index</div><div class="kpi-value" id="kpiTraffic">58%</div><div class="kpi-foot" id="kpiTrafficFoot">Moderate network load</div></article>
+        <article class="kpi-card" style="--accent:#8de2bd"><div class="kpi-label">Energy demand</div><div class="kpi-value" id="kpiEnergy">4.1 GWh</div><div class="kpi-foot">Estimated monthly use</div></article>
+      </div>
+
+      <div class="scene-panel">
+        <div id="scene-frame" aria-label="Interactive 3D smart city canvas"></div>
+        <div class="scene-vignette" aria-hidden="true"></div>
+        <div class="scene-topline">
+          <div class="scene-location"><span class="location-mark"></span><div><strong>Nova City / Central District</strong><span>Urban systems model · sky mobility enabled</span></div></div>
+          <div class="scene-hint">DRAG TO ROTATE &nbsp;·&nbsp; SCROLL TO ZOOM</div>
+        </div>
+        <div class="scene-actions">
+          <button class="scene-button" type="button" id="sceneResetButton"><span aria-hidden="true">⟲</span> Reset view</button>
+          <button class="scene-button" type="button" id="labelsButton" aria-pressed="true"><span aria-hidden="true">⊙</span> Labels: On</button>
+          <button class="scene-button" type="button" id="tourButton"><span aria-hidden="true">▷</span> Cinematic tour</button>
+          <button class="scene-button pulse-button" type="button" id="pulseButton" aria-pressed="false"><span aria-hidden="true">✦</span> City pulse</button>
+          <button class="scene-button" type="button" id="streetLightButton" aria-pressed="true"><span aria-hidden="true">☼</span> Street lights: On</button>
+          <button class="scene-button underground-button" type="button" id="undergroundButton" aria-pressed="false"><span aria-hidden="true">⇣</span> Underground view</button>
+          <button class="scene-button" type="button" id="fullscreenButton" aria-pressed="false" aria-label="Expand 3D city to fullscreen" title="Expand 3D city to fullscreen"><span aria-hidden="true">⛶</span> Full screen</button>
+        </div>
+        <div class="tour-status" id="tourStatus" hidden>
+          <div class="tour-kicker">CITYVERSE / GUIDED FLIGHT</div>
+          <strong id="tourStage">Central district</strong>
+          <span id="tourDescription">Aerial overview of Nova City's urban systems.</span>
+          <div class="tour-progress"><i id="tourProgressBar"></i></div>
+        </div>
+        <div class="pulse-status" id="pulseStatus" hidden>
+          <div class="pulse-kicker">CITYVERSE / SYSTEM PULSE</div>
+          <strong id="pulseStage">Synchronizing city systems</strong>
+          <span id="pulseDescription">Scanning mobility, energy and public-realm nodes.</span>
+          <div class="pulse-meter"><i id="pulseProgressBar"></i></div>
+        </div>
+        <div class="scene-bottom">
+          <div class="scene-legend" aria-label="Building category legend">
+            <span class="legend-item"><i class="legend-dot" style="background:#7197ff"></i>Commercial</span>
+            <span class="legend-item"><i class="legend-dot" style="background:#5fe4e8"></i>Residential</span>
+            <span class="legend-item"><i class="legend-dot" style="background:#b39aff"></i>Civic / Education</span>
+            <span class="legend-item"><i class="legend-dot" style="background:#ffbf69"></i>Transport / Leisure</span>
+            <span class="legend-item"><i class="legend-dot" style="background:#8de2bd"></i>Healthcare / Utilities</span>
+            <span class="legend-item"><i class="legend-dot" style="background:#e0b7ff"></i>Culture</span>
+          </div>
+          <div class="scene-scale"><b id="activeLocationCount">13</b> MATCHING ASSETS <span style="color:#506783">|</span> CITYVERSE v4.0</div>
+        </div>
+      </div>
+      <div class="bottom-note"><span><strong>MODEL NOTE</strong> · Statistics are illustrative demo values, not live city telemetry.</span><span>ARCHVIZ / DIGITAL TWIN · V4.0</span></div>
+    </section>
+
+    <!-- Right panel: selected asset details and Chart.js city energy chart. -->
+    <aside class="panel right-panel" aria-label="Selected location details and city chart">
+      <section class="panel-section" id="selectedAssetPanel">
+        <div class="section-heading"><h2>Location profile</h2><span class="section-count">SELECTED</span></div>
+        <div class="selected-title-row">
+          <div class="selected-title"><div class="micro-label" id="selectedMicroLabel">CITY ASSET / 01</div><h2 id="selectedName">Aurora Financial Tower</h2><div class="asset-id" id="selectedAssetId">ASSET-NC-01</div></div>
+        </div>
+        <div class="category-badge"><i class="legend-dot" id="selectedCategoryDot"></i><span id="selectedCategory">Commercial</span></div>
+        <p class="asset-summary" id="selectedSummary">A high-density commercial anchor with strong daytime activity and above-average energy demand.</p>
+        <div class="metric-grid">
+          <div class="metric-box"><div class="metric-label">Energy demand</div><div class="metric-value" id="selectedEnergy">680<span class="metric-unit">MWh/mo</span></div><div class="metric-foot">Estimated consumption</div></div>
+          <div class="metric-box"><div class="metric-label">Daily footfall</div><div class="metric-value" id="selectedFootfall">5,200</div><div class="metric-foot">People / day</div></div>
+          <div class="metric-box"><div class="metric-label">Building height</div><div class="metric-value" id="selectedHeight">19<span class="metric-unit">floors</span></div><div class="metric-foot" id="selectedFloorHeight">Approx. 68 m</div></div>
+          <div class="metric-box"><div class="metric-label">Traffic exposure</div><div class="metric-value" id="selectedTraffic">74<span class="metric-unit">/ 100</span></div><div class="metric-foot">Scenario-adjusted score</div></div>
+        </div>
+        <div class="detail-list">
+          <div><div class="detail-row"><span class="key">Occupancy</span><span class="value" id="selectedOccupancy">86%</span></div><div class="progress-track"><div class="progress-fill" id="occupancyBar" style="width:86%"></div></div></div>
+          <div class="detail-row"><span class="key">Floor area</span><span class="value" id="selectedArea">42,000 m²</span></div>
+          <div class="detail-row"><span class="key">District coordinates</span><span class="value" id="selectedCoords">X −24 · Z −16</span></div>
+          <div class="detail-row"><span class="key">Sustainability score</span><span class="value" id="selectedSustainability">62 / 100</span></div>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-heading"><h2>District analytics</h2><span class="section-count">CHART 01</span></div>
+        <div class="chart-head"><h3>Energy demand by location</h3><span class="chart-tag">MWh / month</span></div>
+        <p class="chart-subtitle">Highest-demand assets in the current city model. The selected location is highlighted.</p>
+        <div class="chart-wrap"><canvas id="energyChart" aria-label="Bar chart of monthly energy demand by location"></canvas><div id="chartFallback">Chart.js could not load. The 3D model and controls remain available when CDN access is restored.</div></div>
+        <div class="chart-foot" id="chartFoot">Modeled demand values · selection and scenario changes are synchronized with this panel.</div>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // DEMO CITY DATA: illustrative, hard-coded values; no live feeds or API calls.
+    // REQ 1/2/5: fourteen inspectable locations with categories and relevant city statistics.
+    const CITY_DATA = [
+      { id:'aurora-tower', name:'Aurora Financial Tower', shortName:'Aurora Tower', category:'Commercial', x:-30, z:-20, height:19, floors:18, width:6.2, depth:5.8, energyMWh:680, dailyVisitors:5200, occupancy:86, baseTraffic:74, residents:1200, area:42000, sustainability:62, profile:'tower', color:'#7197ff', description:'A high-density commercial anchor with strong daytime activity and above-average energy demand.' },
+      { id:'helix-residences', name:'Helix Residences', shortName:'Helix Residences', category:'Residential', x:-10, z:-20, height:13, floors:12, width:6.6, depth:5.6, energyMWh:420, dailyVisitors:1100, occupancy:93, baseTraffic:61, residents:3800, area:31800, sustainability:81, profile:'residential', color:'#5fe4e8', description:'A mixed-income residential block with high occupancy and a comparatively efficient building envelope.' },
+      { id:'st-elara-medical', name:'St. Elara Medical Center', shortName:'St. Elara Medical', category:'Healthcare', x:10, z:-20, height:10, floors:7, width:6.8, depth:6.0, energyMWh:510, dailyVisitors:2400, occupancy:78, baseTraffic:81, residents:0, area:25400, sustainability:74, profile:'hospital', color:'#8de2bd', description:'A critical care and outpatient facility with continuous operating demand and strong access requirements.' },
+      { id:'central-market', name:'Central Market Hall', shortName:'Central Market', category:'Commercial', x:30, z:-20, height:8, floors:5, width:6.8, depth:6.2, energyMWh:390, dailyVisitors:4100, occupancy:89, baseTraffic:77, residents:0, area:22100, sustainability:67, profile:'market', color:'#7197ff', description:'A compact retail and food market that draws high visitor volumes around peak shopping hours.' },
+      { id:'meridian-civic', name:'Meridian Civic Hall', shortName:'Meridian Civic Hall', category:'Civic', x:-30, z:0, height:9, floors:6, width:6.5, depth:5.7, energyMWh:280, dailyVisitors:950, occupancy:71, baseTraffic:48, residents:0, area:18400, sustainability:76, profile:'civic', color:'#b39aff', description:'A public administration and civic services building serving residents across the district.' },
+      { id:'innovation-campus', name:'Innovation Campus', shortName:'Innovation Campus', category:'Education', x:-10, z:0, height:12, floors:8, width:7.0, depth:6.2, energyMWh:460, dailyVisitors:3600, occupancy:82, baseTraffic:66, residents:0, area:29200, sustainability:88, profile:'campus', color:'#b39aff', description:'A research and learning hub with high daytime occupancy, laboratories and a strong sustainability rating.' },
+      { id:'greenline-station', name:'Greenline Metro Station', shortName:'Greenline Station', category:'Transport', x:10, z:0, height:5, floors:2, width:7.0, depth:5.8, energyMWh:220, dailyVisitors:6100, occupancy:76, baseTraffic:88, residents:0, area:12700, sustainability:91, profile:'station', color:'#ffbf69', description:'The district’s primary transit node, linking local pedestrian trips with the wider public transport network.' },
+      { id:'riverfront-living', name:'Riverfront Living', shortName:'Riverfront Living', category:'Residential', x:30, z:0, height:14, floors:13, width:6.4, depth:5.8, energyMWh:440, dailyVisitors:850, occupancy:95, baseTraffic:55, residents:4600, area:34100, sustainability:84, profile:'residential', color:'#5fe4e8', description:'A tall residential cluster with near-full occupancy and a lower daytime visitor count.' },
+      { id:'solar-grid', name:'Solar Grid Utility Yard', shortName:'Solar Grid Yard', category:'Utilities', x:-30, z:20, height:6, floors:2, width:7.1, depth:6.0, energyMWh:160, dailyVisitors:280, occupancy:64, baseTraffic:35, residents:0, area:16100, sustainability:97, profile:'utility', color:'#8de2bd', description:'A distributed energy and utility compound designed around a high renewable contribution.' },
+      { id:'grand-library', name:'Grand Library', shortName:'Grand Library', category:'Education', x:-10, z:20, height:8, floors:4, width:7.0, depth:6.2, energyMWh:250, dailyVisitors:1750, occupancy:69, baseTraffic:43, residents:0, area:20100, sustainability:90, profile:'library', color:'#b39aff', description:'A public knowledge centre and quiet study destination with a moderate energy footprint.' },
+      { id:'pulse-arena', name:'Pulse Arena', shortName:'Pulse Arena', category:'Leisure', x:10, z:20, height:7, floors:5, width:7.4, depth:6.6, energyMWh:570, dailyVisitors:2850, occupancy:58, baseTraffic:92, residents:0, area:36200, sustainability:69, profile:'arena', color:'#ffbf69', description:'A multi-use event venue whose traffic impact rises sharply during scheduled gatherings.' },
+      { id:'ecoworks-lab', name:'EcoWorks Research Lab', shortName:'EcoWorks Lab', category:'Utilities', x:30, z:20, height:11, floors:8, width:6.6, depth:5.8, energyMWh:360, dailyVisitors:920, occupancy:83, baseTraffic:52, residents:0, area:27800, sustainability:95, profile:'lab', color:'#8de2bd', description:'A clean-technology research building with efficient systems and a high modeled sustainability score.' },
+      { id:'nova-museum', name:'Nova Museum of Tomorrow', shortName:'Museum of Tomorrow', category:'Cultural', x:41, z:-5, height:17, floors:4, width:12.2, depth:9.0, energyMWh:335, dailyVisitors:2850, occupancy:72, baseTraffic:58, residents:0, area:24600, sustainability:93, profile:'museum', color:'#e0b7ff', description:'A civic cultural landmark with a sculptural hollow-ring form, immersive galleries and a planted public terrace.' },
+      { id:'nova-airport', name:'Nova International Airport', shortName:'Nova Airport', category:'Transport', x:66, z:14, height:7.8, floors:3, width:21.0, depth:10.5, energyMWh:620, dailyVisitors:8300, occupancy:82, baseTraffic:95, residents:0, area:148000, sustainability:78, profile:'airport', color:'#ffbf69', description:'A regional air gateway with an elliptical glass terminal, elevated control tower, apron, taxiway and illuminated runway.' }
+    ];
+
+    const CATEGORY_COLORS = {
+      Commercial: 0x7197ff, Residential: 0x5fe4e8, Civic: 0xb39aff, Transport: 0xffbf69,
+      Healthcare: 0x8de2bd, Education: 0xb39aff, Utilities: 0x8de2bd, Leisure: 0xffbf69, Cultural: 0xe0b7ff
+    };
+    const CITY_POPULATION = 42800;
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const fmt = n => Math.round(n).toLocaleString('en-US');
+
+    // One central state object: every UI/control update writes here first.
+    const state = {
+      selectedId: 'aurora-tower',
+      searchQuery: '',
+      categoryFilter: 'all',
+      layers: { traffic: true, energy: false, transit: false, hyperloop: true, underground: true, airMobility: true, streetlights: true },
+      congestion: 42,
+      intervention: 'none',
+      showLabels: true,
+      presentationActive: false,
+      pulseActive: false,
+      focusRequest: 'overview'
+    };
+
+    const frame = document.getElementById('scene-frame');
+    const scenePanel = document.querySelector('.scene-panel');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111923);
+    scene.fog = new THREE.FogExp2(0x111923, 0.0042);
+    let groundMesh = null;
+    let undergroundViewActive = false;
+
+    const camera = new THREE.PerspectiveCamera(43, 1, 0.1, 300);
+    camera.position.set(108, 94, 124);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.65));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.domElement.setAttribute('aria-label', 'Interactive 3D Nova City: drag to rotate, scroll to zoom, click a building to inspect.');
+    frame.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.075;
+    controls.minDistance = 13;
+    controls.maxDistance = 230;
+    controls.maxPolarAngle = Math.PI * .88;
+    controls.target.set(24, 1.8, 5);
+    controls.update();
+
+    scene.add(new THREE.HemisphereLight(0xc8d8e1, 0x344038, 1.65));
+    const keyLight = new THREE.DirectionalLight(0xffe5c2, 2.35);
+    keyLight.position.set(-34, 52, 28);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.left = -55; keyLight.shadow.camera.right = 55;
+    keyLight.shadow.camera.top = 48; keyLight.shadow.camera.bottom = -48;
+    keyLight.shadow.bias = -0.0003;
+    scene.add(keyLight);
+    const cyanLight = new THREE.PointLight(0x65aab0, 0.55, 95, 2);
+    cyanLight.position.set(30, 19, -26); scene.add(cyanLight);
+    const warmFillLight = new THREE.PointLight(0xc18b62, 0.42, 78, 2);
+    warmFillLight.position.set(-28, 15, 26); scene.add(warmFillLight);
+
+    const cityBase = new THREE.Group(); scene.add(cityBase);
+    const buildingsById = new Map();
+    const pickableMeshes = [];
+    const trafficGroup = new THREE.Group(); scene.add(trafficGroup);
+    const energyGroup = new THREE.Group(); scene.add(energyGroup);
+    const transitGroup = new THREE.Group(); scene.add(transitGroup);
+    const signatureGroup = new THREE.Group(); scene.add(signatureGroup);
+    const interventionGroup = new THREE.Group(); scene.add(interventionGroup);
+    const hyperloopGroup = new THREE.Group(); scene.add(hyperloopGroup);
+    const airMobilityGroup = new THREE.Group(); scene.add(airMobilityGroup);
+    const pulseGroup = new THREE.Group(); scene.add(pulseGroup);
+    const waterfallGroup = new THREE.Group(); scene.add(waterfallGroup);
+    const undergroundGroup = new THREE.Group(); scene.add(undergroundGroup);
+    const streetLightGroup = new THREE.Group(); scene.add(streetLightGroup);
+    const interventionGroups = {};
+    const trafficCars = [];
+    const trafficFlowMaterials = [];
+    const energyIndicators = [];
+    const animatedRings = [];
+    const turbineRotors = [];
+    const fountainJets = [];
+    const fountainRipples = [];
+    const pulseRings = [];
+    const pulseNodes = [];
+    const waterfallStreams = [];
+    const waterfallRipples = [];
+    const streetLightSources = [];
+    const airCars = [];
+    let hyperloopTrain = null;
+    let undergroundPod = null;
+    let undergroundCurve = null;
+    let airportAircraft = null;
+    let metroTrain = null;
+    let interventionMetroTrain = null;
+    let tourSequence = null;
+    let tourTransition = null;
+    let chart = null;
+    let sceneResizeObserver = null;
+    let cameraTween = null;
+    let pulseStartedAt = 0;
+    let lastPointerDown = null;
+    const clock = new THREE.Clock();
+    let elapsed = 0;
+
+    function makeMaterial(color, roughness = 0.55, metalness = 0.12, emissive = 0x000000, emissiveIntensity = 0) {
+      return new THREE.MeshStandardMaterial({ color, roughness, metalness, emissive, emissiveIntensity });
+    }
+    function box(parent, width, height, depth, material, x, y, z, options = {}) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = options.castShadow !== false;
+      mesh.receiveShadow = options.receiveShadow !== false;
+      if (options.rotationY) mesh.rotation.y = options.rotationY;
+      parent.add(mesh);
+      return mesh;
+    }
+    function cylinder(parent, radiusTop, radiusBottom, height, material, x, y, z, segments = 12) {
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), material);
+      mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
+    }
+    function addPickable(building, mesh) {
+      mesh.userData.buildingId = building.data.id;
+      pickableMeshes.push(mesh);
+      if (mesh.material) {
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const mat of mats) {
+          if (!building.materials.has(mat)) {
+            mat.userData.baseColor = mat.color ? mat.color.clone() : new THREE.Color(0xffffff);
+            mat.userData.baseEmissive = mat.emissive ? mat.emissive.clone() : new THREE.Color(0x000000);
+            mat.userData.baseEmissiveIntensity = mat.emissiveIntensity || 0;
+            building.materials.add(mat);
+          }
+        }
+      }
+      return mesh;
+    }
+
+    // PROCEDURAL MATERIALS: create repeating facade texture entirely in Canvas; no image assets are loaded.
+    function makeFacadeTexture(data) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const palettes = {
+        tower:      { base:'#25353d', glass:'#456a77', lit:'#d8c7a0', mullion:'#9aa8a7', slab:'#6a7775' },
+        residential:{ base:'#a2a098', glass:'#294553', lit:'#dfcaa0', mullion:'#d0c9b9', slab:'#cec7b7' },
+        hospital:   { base:'#c5c9be', glass:'#527783', lit:'#e3dcb7', mullion:'#e4e3d8', slab:'#e0e0d5' },
+        market:     { base:'#8f8b7c', glass:'#31515c', lit:'#e2c68c', mullion:'#b8b09a', slab:'#c4bda9' },
+        civic:      { base:'#b6a78e', glass:'#365664', lit:'#d6bd8d', mullion:'#ddd0b9', slab:'#e0d2ba' },
+        campus:     { base:'#7c8987', glass:'#315562', lit:'#d7c49a', mullion:'#c6d0c8', slab:'#aeb9b1' },
+        lab:        { base:'#879994', glass:'#2c4d5d', lit:'#d6d6ad', mullion:'#c0d0ca', slab:'#b2c1b9' },
+        library:    { base:'#b0a58e', glass:'#2f4e5a', lit:'#e0cb9b', mullion:'#d4c8b3', slab:'#ddd0ba' },
+        arena:      { base:'#777f80', glass:'#263f4b', lit:'#d9c9a0', mullion:'#aab5b4', slab:'#c0c6c1' },
+        utility:    { base:'#747f7a', glass:'#29424c', lit:'#d0bd8e', mullion:'#a9b3ac', slab:'#a8b1a9' },
+        station:    { base:'#858f8e', glass:'#244550', lit:'#e3d5a6', mullion:'#c0cbc6', slab:'#d1d5cd' },
+        museum:     { base:'#b6b5ad', glass:'#345b66', lit:'#e7d5af', mullion:'#e8dccc', slab:'#e5dfd0' },
+        airport:    { base:'#aab5b2', glass:'#315866', lit:'#e8d5a8', mullion:'#d8e0da', slab:'#d5d8cf' }
+      };
+      const pal = palettes[data.profile] || palettes.tower;
+      const gradient = ctx.createLinearGradient(0, 0, 256, 0);
+      gradient.addColorStop(0, pal.base); gradient.addColorStop(.5, pal.glass); gradient.addColorStop(1, pal.base);
+      ctx.fillStyle = gradient; ctx.fillRect(0, 0, 256, 256);
+      // Four repeated storeys per tile; slab lines and mullions create a consistent architectural rhythm.
+      for (let row = 0; row < 4; row++) {
+        const y = row * 64;
+        ctx.fillStyle = pal.slab; ctx.fillRect(0, y + 1, 256, 3);
+        for (let col = 0; col < 4; col++) {
+          const x = 10 + col * 61;
+          const w = 49, h = 43, wy = y + 9;
+          ctx.fillStyle = '#17252c'; ctx.fillRect(x - 2, wy - 2, w + 4, h + 4);
+          const g = ctx.createLinearGradient(x, wy, x + w, wy + h);
+          g.addColorStop(0, '#577783'); g.addColorStop(.5, pal.glass); g.addColorStop(1, '#1b3541');
+          ctx.fillStyle = g; ctx.fillRect(x, wy, w, h);
+          // Selective warm windows imply interior occupation without turning the facade into a light grid.
+          if (((row * 7 + col * 3 + data.floors) % 9) < 2) {
+            ctx.fillStyle = pal.lit; ctx.globalAlpha = .66;
+            ctx.fillRect(x + 5, wy + 5, w - 10, h - 10); ctx.globalAlpha = 1;
+          }
+          ctx.strokeStyle = pal.mullion; ctx.globalAlpha = .75; ctx.lineWidth = 1.5;
+          ctx.strokeRect(x, wy, w, h);
+          ctx.beginPath(); ctx.moveTo(x + w / 2, wy); ctx.lineTo(x + w / 2, wy + h); ctx.stroke();
+          ctx.globalAlpha = .65; ctx.beginPath(); ctx.moveTo(x, wy + h - 5); ctx.lineTo(x + w, wy + h - 5); ctx.stroke(); ctx.globalAlpha = 1;
+        }
+        if (data.profile === 'residential') {
+          ctx.fillStyle = '#c4bca9'; ctx.fillRect(0, y + 54, 256, 5);
+          ctx.fillStyle = '#d8d0c0'; ctx.fillRect(0, y + 57, 256, 2);
+        }
+      }
+      ctx.fillStyle = 'rgba(10,20,27,.25)'; ctx.fillRect(0, 0, 6, 256); ctx.fillRect(250, 0, 6, 256);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+      texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      texture.needsUpdate = true;
+      return texture;
+    }
+
+    function makeGrassTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#3e6546';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      let seed = 41;
+      const random = () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 4294967296;
+      };
+      for (let i = 0; i < 1450; i++) {
+        const x = random() * 256;
+        const y = random() * 256;
+        const height = 2 + random() * 7;
+        const shade = ['#789454', '#66834c', '#9caf6b', '#4f733f'][i % 4];
+        ctx.strokeStyle = shade;
+        ctx.globalAlpha = .38 + random() * .42;
+        ctx.lineWidth = .55 + random() * .65;
+        ctx.beginPath();
+        ctx.moveTo(x, y + 1);
+        ctx.quadraticCurveTo(x - 1 + random() * 2, y - height * .45, x + (random() - .5) * 3, y - height);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      return texture;
+    }
+
+    const grassTexture = makeGrassTexture();
+
+    // Procedural, understated label sprites; labels are only shown for selection/search to reduce visual clutter.
+    function makeLabelSprite(data) {
+      const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 100;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'rgba(15, 24, 31, 0.94)';
+      ctx.beginPath(); ctx.roundRect(4, 8, 504, 84, 9); ctx.fill();
+      ctx.strokeStyle = 'rgba(146, 204, 210, .72)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(5, 9, 502, 82, 9); ctx.stroke();
+      ctx.fillStyle = data.color; ctx.fillRect(18, 24, 3, 50);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#f1f3ef'; ctx.font = '650 25px system-ui, sans-serif';
+      let title = data.shortName;
+      while (ctx.measureText(title).width > 440 && title.length > 9) title = title.slice(0, -2) + '…';
+      ctx.fillText(title, 34, 40);
+      ctx.fillStyle = '#a7b7bd'; ctx.font = '600 15px system-ui, sans-serif';
+      ctx.fillText(data.category.toUpperCase(), 34, 69);
+      const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+      const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false, opacity: .96 });
+      const sprite = new THREE.Sprite(material); sprite.scale.set(5.8, 1.13, 1); sprite.position.set(0, data.height + 1.35, 0); sprite.renderOrder = 20;
+      sprite.visible = false;
+      return sprite;
+    }
+
+    function warmMuseumMaterial() {
+      return new THREE.MeshStandardMaterial({color:0xd3b58a,emissive:0x6c4925,emissiveIntensity:.22,metalness:.62,roughness:.34});
+    }
+
+    // Low planted roof terraces make greenery part of the architecture, not a ground-only decoration.
+    function addRooftopGarden(root, data, seed) {
+      const green=makeMaterial(0x456a4c,.96,.02), planter=makeMaterial(0x4b5650,.78,.22), foliage=[0x426d50,0x5b8058,0x71845d].map(c=>makeMaterial(c,.95,.01));
+      const roofY=data.height+.25;
+      const spots=[[-.27,-.25],[.27,-.25],[-.27,.25],[.27,.25]];
+      spots.forEach((p,i)=>{
+        const px=p[0]*data.width, pz=p[1]*data.depth;
+        box(root,1.35,.10,.82,planter,px,roofY,pz,{castShadow:false});
+        box(root,1.18,.035,.65,green,px,roofY+.065,pz,{castShadow:false,receiveShadow:false});
+        for(let j=0;j<3;j++) {
+          const shrub=new THREE.Mesh(new THREE.SphereGeometry(.22+(j%2)*.035,9,7),foliage[(seed+i+j)%foliage.length]);
+          shrub.position.set(px+(j-1)*.28,roofY+.25,pz+((j%2)-.5)*.20); shrub.scale.y=.72; shrub.castShadow=true; root.add(shrub);
+        }
+      });
+      // A narrow glass guardrail signals an accessible planted terrace.
+      const railMat=new THREE.MeshStandardMaterial({color:0x86a8a2,roughness:.24,metalness:.55,transparent:true,opacity:.56});
+      box(root,data.width*.66,.48,.045,railMat,0,roofY+.31,data.depth*.39,{castShadow:false});
+    }
+
+    // REQ 1: reusable procedural architectural families for all named locations.
+    function buildBuilding(data, index) {
+      const root = new THREE.Group(); root.position.set(data.x, 0, data.z); root.userData.buildingId = data.id;
+      cityBase.add(root);
+      const building = { data, root, materials: new Set(), pickMeshes: [], label: null, matchRing: null, selectRing: null, energyBar: null };
+      buildingsById.set(data.id, building);
+
+      const stoneMat = makeMaterial(data.profile === 'tower' ? 0x666f70 : 0x8a8b80, .72, .12);
+      const darkStoneMat = makeMaterial(0x333f43, .7, .18);
+      const metalMat = makeMaterial(0x667579, .35, .68);
+      const roofMat = makeMaterial(0x596467, .78, .24);
+      const frameMat = makeMaterial(0x9da7a3, .42, .5);
+      const accentMat = makeMaterial(new THREE.Color(data.color).multiplyScalar(.56), .44, .35);
+      const facadeTexture = makeFacadeTexture(data);
+      const facadeMat = new THREE.MeshStandardMaterial({ map: facadeTexture, color: 0xffffff, roughness: .36, metalness: .24 });
+      const glassMat = makeMaterial(0x315564, .22, .44, 0x10232a, .06);
+      const add = mesh => { building.pickMeshes.push(mesh); addPickable(building, mesh); return mesh; };
+      const detail = mesh => { root.add(mesh); return mesh; };
+
+      // Architectural plinths follow the building footprint: rounded bases for sculptural forms, orthogonal bases for civic blocks.
+      if (['tower','residential','market','arena','airport'].includes(data.profile)) {
+        const radius = data.profile === 'airport' ? 11.05 : data.profile === 'arena' ? 3.65 : Math.min(data.width,data.depth) * .49;
+        const scaleZ = data.profile === 'airport' ? .42 : data.profile === 'tower' || data.profile === 'residential' ? data.depth / data.width : 1;
+        const p1 = cylinder(root, radius*.99, radius*1.08, .28, darkStoneMat, 0, .14, 0, 48); p1.scale.z = scaleZ;
+        const p2 = cylinder(root, radius*.91, radius*.98, .13, stoneMat, 0, .345, 0, 48); p2.scale.z = scaleZ;
+        const p3 = cylinder(root, radius*.86, radius*.90, .08, frameMat, 0, .45, 0, 48); p3.scale.z = scaleZ;
+      } else {
+        detail(box(root, data.width + 1.28, .28, data.depth + 1.25, darkStoneMat, 0, .14, 0, { castShadow:false }));
+        detail(box(root, data.width + .56, .13, data.depth + .54, stoneMat, 0, .34, 0, { castShadow:false }));
+        detail(box(root, data.width + .22, .08, data.depth + .22, frameMat, 0, .43, 0, { castShadow:false }));
+      }
+
+      function facadeBody(width, height, depth, x, y, z, floors = data.floors) {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), facadeMat);
+        body.position.set(x, y, z); body.castShadow = true; body.receiveShadow = true;
+        facadeTexture.repeat.set(Math.max(1, width / 3.15), Math.max(1, floors / 4));
+        facadeTexture.needsUpdate = true;
+        root.add(body); addPickable(building, body);
+        return body;
+      }
+      function roofPlant(width, depth, x, z, count = 2) {
+        detail(box(root, width, .22, depth, roofMat, x, data.height + .04, z, { castShadow:true }));
+        for (let i = 0; i < count; i++) {
+          const px = x + (i - (count - 1) / 2) * (width / Math.max(1, count));
+          detail(box(root, Math.min(1.05, width / (count + .8)), .4, Math.min(.75, depth * .32), darkStoneMat, px, data.height + .32, z, { castShadow:false }));
+        }
+      }
+
+      // Category-specific massing: podium towers, balconies, hospital wings, civic colonnades and transit canopies.
+      if (data.profile === 'tower') {
+        // Signature office tower: tapered 16-sided glass shaft with elliptical floor plates and a crown terrace.
+        const podiumH = 2.35;
+        detail(box(root, data.width + 1.02, podiumH, data.depth + .9, stoneMat, 0, .47 + podiumH / 2, 0));
+        const shaftHeight = data.height - podiumH;
+        facadeTexture.repeat.set(Math.max(1,data.width/2.7), Math.max(1,data.floors/3.7));
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(data.width*.225,data.width*.47,shaftHeight,24,Math.max(4,data.floors-2),false),facadeMat);
+        shaft.scale.z = data.depth/data.width; shaft.position.y = podiumH + shaftHeight/2 + .47; shaft.rotation.y = Math.PI/24; shaft.castShadow = true; shaft.receiveShadow = true; root.add(shaft); addPickable(building,shaft);
+        for(let y=podiumH+1.0;y<data.height-.25;y+=2.1) {
+          const r=data.width*(.47-.245*((y-podiumH)/shaftHeight));
+          const band=new THREE.Mesh(new THREE.TorusGeometry(r,.055,6,64),metalMat); band.rotation.x=Math.PI/2; band.scale.y=data.depth/data.width; band.position.y=y+.47; detail(band);
+        }
+        for(let i=0;i<8;i++) {
+          const a=i*Math.PI/4;
+          const fin=box(root,.11,shaftHeight*.94,.13,frameMat,Math.cos(a)*data.width*.36,podiumH+shaftHeight/2+.47,Math.sin(a)*data.depth*.36,{castShadow:false}); fin.rotation.y=-a; detail(fin);
+        }
+        const crown=new THREE.Mesh(new THREE.CylinderGeometry(data.width*.22,data.width*.25,.55,24),roofMat); crown.scale.z=data.depth/data.width; crown.position.y=data.height+.16; detail(crown);
+        roofPlant(data.width*.48,data.depth*.40,0,0,3);
+        const spire=cylinder(root,.035,.075,1.55,metalMat,data.width*.08,data.height+1.05,0,12);
+      } else if (data.profile === 'residential') {
+        // Residential tower uses a rounded oval footprint and wraparound balcony rings.
+        facadeTexture.repeat.set(Math.max(1,data.width/2.8),Math.max(1,data.floors/3.7));
+        const body=new THREE.Mesh(new THREE.CylinderGeometry(data.width*.43,data.width*.49,data.height-.7,20,Math.max(4,data.floors),false),facadeMat);
+        body.scale.z=data.depth/data.width; body.position.y=(data.height+.2)/2; body.rotation.y=.08; body.castShadow=true; body.receiveShadow=true; root.add(body); addPickable(building,body);
+        for(let y=1.45;y<data.height-.3;y+=1.65) {
+          const ring=new THREE.Mesh(new THREE.TorusGeometry(data.width*.46,.075,5,64),stoneMat); ring.rotation.x=Math.PI/2; ring.scale.y=data.depth/data.width; ring.position.y=y; detail(ring);
+          // Small projecting balcony pods break the continuous oval facade into inhabited terraces.
+          for(let i=0;i<8;i++) { const a=i*Math.PI/4; const bal=box(root,.76,.10,.56,frameMat,Math.cos(a)*(data.width*.45),y+.34,Math.sin(a)*(data.depth*.45),{castShadow:false}); bal.rotation.y=-a; detail(bal); }
+        }
+        const roof=new THREE.Mesh(new THREE.CylinderGeometry(data.width*.43,data.width*.47,.24,24),roofMat); roof.scale.z=data.depth/data.width; roof.position.y=data.height+.02; detail(roof);
+        roofPlant(data.width*.34,data.depth*.34,0,0,2);
+      } else if (data.profile === 'hospital') {
+        facadeBody(data.width, data.height - .75, data.depth, 0, (data.height + .15) / 2, 0, data.floors);
+        // A lower emergency/diagnostics wing creates a recognizable multi-volume hospital profile.
+        detail(box(root, data.width * .48, data.height * .48, data.depth * .55, stoneMat, -data.width * .24, .45 + data.height * .24, data.depth * .40, { castShadow:true }));
+        detail(box(root, data.width + .24, .22, data.depth + .24, roofMat, 0, data.height, 0));
+        const signMat = makeMaterial(0xf0eee3, .5, .08);
+        detail(box(root, 1.1, .22, .09, signMat, 0, data.height * .62, -data.depth / 2 - .06, { castShadow:false }));
+        detail(box(root, .14, .72, .1, accentMat, 0, data.height * .62, -data.depth / 2 - .12, { castShadow:false }));
+        roofPlant(data.width * .42, data.depth * .36, 0, 0, 3);
+      } else if (data.profile === 'market') {
+        // Market hall: elongated oval plan capped by a shallow glazed barrel vault.
+        const hall=new THREE.Mesh(new THREE.CylinderGeometry(data.depth*.48,data.depth*.52,data.height-1.0,36,3,false),facadeMat);
+        hall.scale.x=data.width/data.depth; hall.position.y=(data.height+.05)/2; hall.castShadow=true; hall.receiveShadow=true; root.add(hall); addPickable(building,hall);
+        const vault=new THREE.Mesh(new THREE.SphereGeometry(1,36,16,0,Math.PI*2,0,Math.PI/2),glassMat);
+        vault.scale.set(data.width*.49,1.55,data.depth*.49); vault.position.y=data.height-.78; detail(vault);
+        const canopy=box(root,data.width*.82,.12,.95,metalMat,0,3.18,-data.depth*.48,{castShadow:false});
+        for(let i=-4;i<=4;i++) { const fin=box(root,.055,2.55,.07,frameMat,i*data.width*.085,1.75,-data.depth*.49,{castShadow:false}); }
+        roofPlant(data.width*.32,data.depth*.24,0,0,2);
+      } else if (data.profile === 'station') {
+        facadeBody(data.width, 2.1, data.depth * .72, 0, 1.52, .08, 2);
+        detail(box(root, data.width + 1.1, .2, data.depth + 1.0, metalMat, 0, 2.72, 0, { castShadow:true }));
+        detail(box(root, data.width + .52, .07, data.depth + .38, frameMat, 0, 2.59, 0, { castShadow:false }));
+        for (let x = -data.width * .42; x <= data.width * .43; x += 1.35) detail(box(root, .065, 2.25, .08, metalMat, x, 1.47, -data.depth * .36, { castShadow:false }));
+        detail(box(root, 2.5, .11, .11, accentMat, 0, 3.1, 0, { castShadow:false }));
+        // Ticket hall roof equipment stays low, so the station remains visually horizontal.
+        for (let x = -2.3; x <= 2.31; x += 1.15) detail(box(root, .44, .18, .65, darkStoneMat, x, 3.02, .25, { castShadow:false }));
+      } else if (data.profile === 'utility') {
+        facadeBody(data.width, data.height - .8, data.depth, 0, (data.height + .1) / 2, 0, 2);
+        detail(box(root, data.width + .3, .22, data.depth + .3, roofMat, 0, data.height, 0));
+        // Procedural solar collectors: dark glass panels with metal frames.
+        for (let x = -2.6; x <= 2.61; x += 1.3) {
+          const panel = detail(box(root, .98, .075, 1.48, makeMaterial(0x294a58, .25, .55), x, data.height + .2, 0, { castShadow:false }));
+          panel.rotation.x = -.12;
+          detail(box(root, 1.02, .045, .05, metalMat, x, data.height + .25, -.72, { castShadow:false }));
+        }
+        roofPlant(1.1, .8, data.width * .28, 0, 2);
+      } else if (data.profile === 'civic') {
+        facadeBody(data.width, data.height - 1.1, data.depth, 0, (data.height - .1) / 2, 0, data.floors);
+        detail(box(root, data.width + .95, .34, data.depth + .8, stoneMat, 0, data.height - .12, 0));
+        detail(box(root, data.width + .35, .13, data.depth + .28, frameMat, 0, data.height + .1, 0));
+        for (let x = -data.width * .36; x <= data.width * .37; x += 1.5) detail(box(root, .19, data.height * .52, .2, frameMat, x, data.height * .29, -data.depth / 2 - .17));
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(.72, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), roofMat);
+        dome.position.set(0, data.height + .25, 0); detail(dome);
+      } else if (data.profile === 'campus') {
+        // Campus is a three-wing composition around a planted courtyard, not a single monolithic block.
+        facadeBody(data.width*.40,data.height-.65,data.depth*.88,-data.width*.30,(data.height+.05)/2,0,data.floors);
+        facadeBody(data.width*.40,data.height-.65,data.depth*.88,data.width*.30,(data.height+.05)/2,0,data.floors);
+        facadeBody(data.width*.72,data.height*.72,data.depth*.30,0,data.height*.36,data.depth*.32,Math.max(3,data.floors-2));
+        detail(box(root,data.width+.3,.2,data.depth+.28,roofMat,0,data.height,0));
+        const court=box(root,data.width*.27,.10,data.depth*.32,makeMaterial(0x46664b,.96,.02),0,.58,-data.depth*.14,{castShadow:false});
+        for(let x=-data.width*.32;x<=data.width*.33;x+=1.5) detail(box(root,.085,data.height*.78,.15,frameMat,x,data.height*.47,-data.depth*.46,{castShadow:false}));
+        roofPlant(data.width*.32,data.depth*.22,-data.width*.22,0,2);
+      } else if (data.profile === 'lab') {
+        // Research lab: faceted octagonal mass with a recessed central lightwell and upper setback.
+        const lower=new THREE.Mesh(new THREE.CylinderGeometry(data.width*.49,data.width*.53,data.height*.70,8,1),facadeMat);
+        lower.scale.z=data.depth/data.width; lower.position.y=data.height*.36; lower.rotation.y=Math.PI/8; lower.castShadow=true; lower.receiveShadow=true; root.add(lower); addPickable(building,lower);
+        const upper=new THREE.Mesh(new THREE.CylinderGeometry(data.width*.34,data.width*.42,data.height*.30,8,1),facadeMat);
+        upper.scale.z=data.depth/data.width; upper.position.y=data.height*.86; upper.rotation.y=Math.PI/8; upper.castShadow=true; root.add(upper); addPickable(building,upper);
+        const crown=new THREE.Mesh(new THREE.CylinderGeometry(data.width*.35,data.width*.38,.24,8),roofMat); crown.scale.z=data.depth/data.width; crown.position.y=data.height+.08; detail(crown);
+        for(let i=0;i<8;i++) { const a=i*Math.PI/4; const fin=box(root,.12,data.height*.72,.12,frameMat,Math.cos(a)*data.width*.43,data.height*.37,Math.sin(a)*data.depth*.43,{castShadow:false}); fin.rotation.y=-a; detail(fin); }
+        roofPlant(data.width*.25,data.depth*.24,0,0,3);
+      } else if (data.profile === 'library') {
+        facadeBody(data.width, data.height - .65, data.depth, 0, (data.height + .05) / 2, 0, data.floors);
+        for (let y = 1.4; y < data.height; y += 1.5) detail(box(root, data.width + .36, .12, data.depth + .34, stoneMat, 0, y, 0, { castShadow:false }));
+        detail(box(root, data.width + .5, .24, data.depth + .42, roofMat, 0, data.height, 0));
+        detail(box(root, data.width * .58, .12, .72, metalMat, 0, 2.5, -data.depth / 2 - .36, { castShadow:false }));
+        roofPlant(data.width * .45, data.depth * .32, 0, 0, 2);
+      } else if (data.profile === 'arena') {
+        // Broad cylindrical concourse and stepped seating ring distinguish the venue from office blocks.
+        const arenaBase = cylinder(root, 3.0, 3.2, 4.3, facadeMat, 0, 2.55, 0, 32);
+        addPickable(building, arenaBase);
+        detail(cylinder(root, 3.45, 3.35, .36, roofMat, 0, 4.85, 0, 32));
+        detail(cylinder(root, 2.8, 2.8, .22, metalMat, 0, 5.13, 0, 32));
+        detail(cylinder(root, 2.45, 2.65, .32, glassMat, 0, 5.38, 0, 32));
+        detail(box(root, data.width * .6, .16, data.depth * .48, roofMat, 0, data.height - .12, 0, { castShadow:false }));
+      } else if (data.profile === 'airport') {
+        // Airport terminal: elliptical glazed concourse, curved roof dome and elevated air-traffic control tower.
+        const shell=new THREE.Mesh(new THREE.CylinderGeometry(5.0,5.45,5.45,48,3,false),facadeMat);
+        shell.scale.set(2.02,1,.84); shell.position.y=3.05; shell.castShadow=true; shell.receiveShadow=true; root.add(shell); addPickable(building,shell);
+        const glassBand=new THREE.Mesh(new THREE.CylinderGeometry(5.48,5.48,1.45,48,1,true),glassMat);
+        glassBand.scale.set(1.99,1,.84); glassBand.position.y=3.35; detail(glassBand);
+        const canopy=new THREE.Mesh(new THREE.SphereGeometry(1,48,18,0,Math.PI*2,0,Math.PI/2),roofMat);
+        canopy.scale.set(10.55,2.0,4.45); canopy.position.y=5.92; detail(canopy);
+        const skylight=new THREE.Mesh(new THREE.SphereGeometry(1,36,14,0,Math.PI*2,0,Math.PI/2),new THREE.MeshStandardMaterial({color:0x3a6874,roughness:.18,metalness:.42,transparent:true,opacity:.78,emissive:0x102f38,emissiveIntensity:.18}));
+        skylight.scale.set(5.4,1.25,2.35); skylight.position.set(-1.2,6.25,-.1); detail(skylight);
+        // Continuous curved mullion ribs articulate the glazed terminal frontage.
+        const ribMat=makeMaterial(0xaebbb5,.32,.68);
+        for(let i=0;i<15;i++) { const a=-Math.PI*.48+i*(Math.PI*.96/14); const rib=box(root,.065,4.15,.08,ribMat,Math.cos(a)*10.25,3.0,Math.sin(a)*4.28,{castShadow:false}); rib.rotation.y=-a; detail(rib); }
+        // Boarding concourses project from the oval terminal as separate low wings.
+        const pierMat=makeMaterial(0x74817e,.58,.34);
+        for(const side of [-1,1]) {
+          const pier=box(root,5.2,2.2,3.0,facadeMat,side*7.5,1.55,5.0,{castShadow:true}); pier.rotation.y=side*.10; detail(pier);
+          box(root,5.35,.16,3.15,pierMat,side*7.5,2.72,5.0,{castShadow:false});
+          for(let w=0;w<4;w++) box(root,.055,1.4,.06,frameMat,side*7.5-2.0+w*1.33,1.55,6.54,{castShadow:false});
+        }
+        // Slender air-traffic control tower with a glazed octagonal cab and overhanging roof.
+        const towerX=8.25,towerZ=-2.3;
+        cylinder(root,.28,.48,7.2,stoneMat,towerX,4.1,towerZ,12);
+        const cab=cylinder(root,1.0,1.08,1.15,glassMat,towerX,8.15,towerZ,8); cab.scale.z=.82; detail(cab);
+        const cabRoof=cylinder(root,1.22,1.10,.18,metalMat,towerX,8.82,towerZ,8); cabRoof.scale.z=.82; detail(cabRoof);
+        for(let i=0;i<8;i++) { const a=i*Math.PI/4; const mull=box(root,.045,.9,.045,frameMat,towerX+Math.cos(a)*.98,8.15,towerZ+Math.sin(a)*.80,{castShadow:false}); mull.rotation.y=-a; detail(mull); }
+        cylinder(root,.04,.07,.8,accentMat,towerX,9.3,towerZ,10);
+        // Arrival canopy and landscaped drop-off forecourt.
+        box(root,13.5,.18,1.8,metalMat,0,2.65,-5.3,{castShadow:true});
+        for(let x=-5.5;x<=5.6;x+=2.75) cylinder(root,.07,.09,2.5,frameMat,x,1.35,-5.3,8);
+        for(const x of [-8,-4,4,8]) makeTree(x,7.0,.65,Math.round(x+20),root);
+      } else if (data.profile === 'museum') {
+        // Signature cultural landmark: a hollow sculptural ring with a glazed gallery core.
+        const podium = cylinder(root, 5.7, 6.25, 1.05, stoneMat, 0, .67, 0, 64);
+        podium.scale.set(1.0, 1.0, .76); detail(podium);
+        const podiumCap = cylinder(root, 5.35, 5.65, .22, metalMat, 0, 1.30, 0, 64);
+        podiumCap.scale.set(1.0, 1.0, .76); detail(podiumCap);
+        const gallery = cylinder(root, 2.0, 2.35, 7.4, glassMat, 0, 5.0, 0, 40);
+        gallery.scale.set(1.35, 1.0, .78); add(gallery);
+        const ringMat = new THREE.MeshStandardMaterial({color:0xc5c9c0,roughness:.28,metalness:.58,emissive:0x1e3838,emissiveIntensity:.12});
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(3.25,.70,20,112),ringMat);
+        ring.scale.set(1.55,2.0,.74); ring.position.set(0,9.7,0); ring.rotation.z=-.10; root.add(ring); add(ring);
+        const innerRim = new THREE.Mesh(new THREE.TorusGeometry(3.24,.055,8,112),new THREE.MeshStandardMaterial({color:0x79dfe0,emissive:0x258b91,emissiveIntensity:.48,metalness:.55,roughness:.24}));
+        innerRim.scale.set(1.55,2.0,.74); innerRim.position.copy(ring.position); innerRim.rotation.copy(ring.rotation); detail(innerRim);
+        const lowerRim = new THREE.Mesh(new THREE.TorusGeometry(3.28,.045,8,112),warmMuseumMaterial());
+        lowerRim.scale.set(1.55,2.0,.74); lowerRim.position.set(0,9.7,0); lowerRim.rotation.z=-.10; detail(lowerRim);
+        // Fine perforation lights trace the front-facing edge without turning the landmark into a neon prop.
+        const perforationMat = new THREE.MeshBasicMaterial({color:0xe7d4a9,transparent:true,opacity:.82});
+        for(let i=0;i<46;i++) {
+          const a=(i/46)*Math.PI*2;
+          const dot=new THREE.Mesh(new THREE.SphereGeometry(.055,7,6),perforationMat);
+          dot.position.set(Math.cos(a)*5.0,9.7+Math.sin(a)*6.45,.78); detail(dot);
+        }
+        for(let i=0;i<8;i++) {
+          const a=i*Math.PI/4;
+          const fin=box(root,.09,2.1,.10,frameMat,Math.cos(a)*2.7,4.1,Math.sin(a)*2.1,{castShadow:false});
+          fin.rotation.y=-a; detail(fin);
+        }
+        detail(box(root,5.3,.16,.46,metalMat,0,2.0,4.55,{castShadow:false}));
+        detail(box(root,4.9,.10,.28,glassMat,0,2.12,4.58,{castShadow:false}));
+        const signCanvas=document.createElement('canvas'); signCanvas.width=640; signCanvas.height=150;
+        const signCtx=signCanvas.getContext('2d');
+        signCtx.fillStyle='rgba(10,21,29,.90)'; signCtx.fillRect(0,0,640,150);
+        signCtx.strokeStyle='rgba(125,221,219,.7)'; signCtx.lineWidth=3; signCtx.strokeRect(3,3,634,144);
+        signCtx.fillStyle='#eef3e9'; signCtx.font='700 38px system-ui'; signCtx.fillText('NOVA MUSEUM',28,66);
+        signCtx.fillStyle='#8bd8d7'; signCtx.font='600 20px system-ui'; signCtx.fillText('OF TOMORROW  /  CULTURAL DISTRICT',30,106);
+        const signTex=new THREE.CanvasTexture(signCanvas); signTex.colorSpace=THREE.SRGBColorSpace;
+        const sign=new THREE.Sprite(new THREE.SpriteMaterial({map:signTex,transparent:true,depthTest:true}));
+        sign.position.set(0,3.35,5.0); sign.scale.set(5.5,1.28,1); detail(sign);
+      } else {
+        facadeBody(data.width, data.height - .5, data.depth, 0, (data.height + .2) / 2, 0, data.floors);
+        detail(box(root, data.width + .28, .22, data.depth + .28, roofMat, 0, data.height, 0));
+      }
+
+      // Roof equipment, parapets and subtle front-door recesses add scale without excessive decoration.
+      if (!['station', 'arena'].includes(data.profile)) {
+        detail(box(root, Math.min(1.25, data.width * .18), .65, Math.min(1.0, data.depth * .18), darkStoneMat, -data.width * .23, Math.max(2.1, data.height - .22), data.depth * .14, { castShadow:false }));
+      }
+      detail(box(root, Math.min(2.0, data.width * .34), .08, .15, accentMat, 0, 1.22, -data.depth / 2 - .10, { castShadow:false }));
+      if(['tower','residential','hospital','campus','library','lab'].includes(data.profile)) addRooftopGarden(root,data,index);
+
+      // Thin site edge and corner markers replace the huge glowing circular halos.
+      const ringGeo = new THREE.TorusGeometry(Math.min(data.width, data.depth) * .43, .018, 4, 56);
+      const matchRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xe2bf80, transparent: true, opacity: .78, depthWrite: false }));
+      matchRing.rotation.x = Math.PI / 2; matchRing.position.y = .30; matchRing.scale.set(data.width / Math.min(data.width, data.depth), data.depth / Math.min(data.width, data.depth), 1); matchRing.visible = false; matchRing.userData.baseScale = matchRing.scale.clone(); root.add(matchRing);
+      const selectedRing = new THREE.Mesh(new THREE.TorusGeometry(Math.min(data.width, data.depth) * .47, .028, 5, 56), new THREE.MeshBasicMaterial({ color: 0x79d4d8, transparent: true, opacity: .88, depthWrite: false }));
+      selectedRing.rotation.x = Math.PI / 2; selectedRing.position.y = .34; selectedRing.scale.set(data.width / Math.min(data.width, data.depth), data.depth / Math.min(data.width, data.depth), 1); selectedRing.visible = false; selectedRing.userData.baseScale = selectedRing.scale.clone(); root.add(selectedRing);
+      building.matchRing = matchRing; building.selectRing = selectedRing;
+      const label = makeLabelSprite(data); root.add(label); building.label = label;
+      return building;
+    }
+
+    // Context architecture supplies secondary residential/commercial massing around the 12 inspectable assets.
+    function buildContextBuilding(x, z, width, depth, height, profile, seed) {
+      const root = new THREE.Group(); root.position.set(x, 0, z); cityBase.add(root);
+      const d = { profile, floors: Math.max(2, Math.round(height / 1.1)), height, color:'#8ba3a5' };
+      const tex = makeFacadeTexture(d); tex.repeat.set(Math.max(1, width / 3), Math.max(1, height / 4));
+      const facade = new THREE.MeshStandardMaterial({ map:tex, roughness:.46, metalness:.14, color:0xb4bdb6 });
+      const concrete = makeMaterial(seed % 2 ? 0x777d78 : 0x8c8a7e, .78, .1);
+      box(root, width + .42, .2, depth + .42, concrete, 0, .1, 0, {castShadow:false});
+      const variant=seed%4;
+      let body;
+      if(variant===0) {
+        body=new THREE.Mesh(new THREE.CylinderGeometry(width*.43,width*.50,height,20,3,false),facade); body.scale.z=depth/width;
+        body.position.y=height/2+.18; body.rotation.y=.10;
+      } else if(variant===1) {
+        body=new THREE.Mesh(new THREE.CylinderGeometry(width*.39,width*.48,height,8,2,false),facade); body.scale.z=depth/width;
+        body.position.y=height/2+.18; body.rotation.y=Math.PI/8;
+      } else if(variant===2) {
+        body=new THREE.Mesh(new THREE.CylinderGeometry(width*.31,width*.52,height,12,3,false),facade); body.scale.z=depth/width;
+        body.position.y=height/2+.18;
+      } else {
+        body=new THREE.Mesh(new THREE.BoxGeometry(width,height*.72,depth),facade);
+        body.position.y=height*.36+.18; body.castShadow=true; body.receiveShadow=true; root.add(body);
+        const upper=new THREE.Mesh(new THREE.BoxGeometry(width*.78,height*.30,depth*.80),facade);
+        upper.position.y=height*.87+.18; upper.position.x=(seed%2?-.18:.18); upper.castShadow=true; root.add(upper);
+      }
+      body.castShadow = true; body.receiveShadow = true; root.add(body);
+      if(variant<3) {
+        for(let y=1.5;y<height-.3;y+=Math.max(1.5,height/5)) {
+          const band=new THREE.Mesh(new THREE.TorusGeometry(width*.45,.045,5,32),concrete); band.rotation.x=Math.PI/2; band.scale.y=depth/width; band.position.y=y; root.add(band);
+        }
+      }
+      if (profile === 'residential') {
+        for (let y=1.4; y<height; y+=1.65) box(root, width+.22,.05,depth+.16,concrete,0,y,0,{castShadow:false});
+      } else {
+        for (let i=0; i<2; i++) box(root, .48, .32, .42, concrete, (i-.5)*width*.38, height+.43, 0, {castShadow:false});
+      }
+      if(variant===2) {
+        const crown=new THREE.Mesh(new THREE.ConeGeometry(width*.34,1.2,12),concrete); crown.position.y=height+.78; root.add(crown);
+      }
+    }
+
+    function makeTree(x, z, scale = 1, seed = 0, parent = cityBase) {
+      // Shared geometry/materials keep the procedural landscaping inexpensive to render.
+      if (!makeTree.trunkMat) {
+        makeTree.trunkMat = makeMaterial(0x554c40, .92, .02);
+        makeTree.leaves = [0x375847,0x48664e,0x526f55,0x3d5c4b].map(c => makeMaterial(c,.91,.01));
+        makeTree.crownGeometry = new THREE.SphereGeometry(1,12,10);
+      }
+      cylinder(parent, .11*scale, .17*scale, 1.55*scale, makeTree.trunkMat, x, .78*scale, z, 9);
+      const crown = new THREE.Group(); crown.position.set(x,1.65*scale,z); parent.add(crown);
+      const shapes = [[0,0,0,.76],[.36,.17,.02,.58],[-.32,.22,.08,.61],[.05,.47,-.08,.53]];
+      shapes.forEach((a,i)=>{
+        const mesh = new THREE.Mesh(makeTree.crownGeometry,makeTree.leaves[(Math.abs(seed+i))%makeTree.leaves.length]);
+        mesh.position.set(a[0]*scale,a[1]*scale,a[2]*scale); mesh.scale.set(a[3]*scale,a[3]*scale*.92,a[3]*scale*1.05); mesh.castShadow=true; mesh.receiveShadow=true; crown.add(mesh);
+      });
+    }
+
+    function createGroundAndRoads() {
+      // A continuous urban ground plane and fine-grain surface variation replace the glowing grid floor.
+      const groundMat = new THREE.MeshStandardMaterial({ color:0xb0c28e, roughness:.98, metalness:.01, map:grassTexture });
+      groundMat.map.repeat.set(28, 19);
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(164, 112), groundMat);
+      ground.rotation.x = -Math.PI / 2; ground.position.set(24, -.06, 3); ground.receiveShadow = true; cityBase.add(ground);
+      groundMesh = ground;
+      const landMatA = makeMaterial(0x303a35,.98,.01), landMatB = makeMaterial(0x353c36,.98,.01);
+      for (const z of [-20,0,20]) for (const x of [-30,-10,10,30]) {
+        box(cityBase, 14.1, .045, 14.1, ((x+z)%2===0 ? landMatA : landMatB), x, -.012, z, {castShadow:false});
+      }
+
+      const asphalt = makeMaterial(0x282e31, .96, .04);
+      const curbMat = makeMaterial(0x92958d, .82, .04);
+      const sidewalkMat = makeMaterial(0x777d77, .88, .04);
+      const paverAlt = makeMaterial(0x69716d, .9, .03);
+      const laneMat = makeMaterial(0xb8b6a6, .7, .02, 0x282d2b, .04);
+      const centerlineMat = makeMaterial(0xc7a76f,.68,.02);
+      // Main east-west roads with a restrained centre line and broken lane markings.
+      for (const z of [-10,10]) {
+        box(cityBase, 88, .105, 5.8, asphalt, 0, .015, z, {castShadow:false});
+        box(cityBase, 88, .05, .12, curbMat, 0, .075, z-2.92, {castShadow:false});
+        box(cityBase, 88, .05, .12, curbMat, 0, .075, z+2.92, {castShadow:false});
+        box(cityBase, 82, .016, .06, centerlineMat, 0, .079, z, {castShadow:false,receiveShadow:false});
+        for (let x=-40; x<=40; x+=6.2) {
+          box(cityBase, 2.35,.018,.10,laneMat,x,.08,z-1.32,{castShadow:false,receiveShadow:false});
+          box(cityBase, 2.35,.018,.10,laneMat,x,.08,z+1.32,{castShadow:false,receiveShadow:false});
+        }
+        for (const side of [-1,1]) {
+          const sz = z + side*3.75;
+          box(cityBase, 88,.075,1.12,sidewalkMat,0,.045,sz,{castShadow:false});
+          for (let x=-41; x<=41; x+=2.1) box(cityBase,.045,.012,1.05,paverAlt,x,.087,sz,{castShadow:false,receiveShadow:false});
+          box(cityBase,88,.045,.12,curbMat,0,.09,z+side*3.18,{castShadow:false});
+        }
+      }
+      // North-south roads and their sidewalks align with the block-centred anchor buildings.
+      for (const x of [-20,0,20]) {
+        box(cityBase,5.8,.105,70,asphalt,x,.015,0,{castShadow:false});
+        box(cityBase,.12,.05,70,curbMat,x-2.92,.075,0,{castShadow:false});
+        box(cityBase,.12,.05,70,curbMat,x+2.92,.075,0,{castShadow:false});
+        box(cityBase,.06,.016,66,centerlineMat,x,.079,0,{castShadow:false,receiveShadow:false});
+        for(let z=-32;z<=32;z+=6.2){
+          box(cityBase,.1,.018,2.35,laneMat,x-1.32,.08,z,{castShadow:false,receiveShadow:false});
+          box(cityBase,.1,.018,2.35,laneMat,x+1.32,.08,z,{castShadow:false,receiveShadow:false});
+        }
+        for(const side of [-1,1]){
+          const sx=x+side*3.75;
+          box(cityBase,1.12,.075,70,sidewalkMat,sx,.045,0,{castShadow:false});
+          for(let z=-33;z<=33;z+=2.1) box(cityBase,1.05,.012,.045,paverAlt,sx,.087,z,{castShadow:false,receiveShadow:false});
+          box(cityBase,.12,.045,70,curbMat,x+side*3.18,.09,0,{castShadow:false});
+        }
+      }
+      // Pedestrian crossings at primary intersections: small, evenly spaced, correctly aligned stripes.
+      for (const x of [-20,0,20]) for (const z of [-10,10]) {
+        for (let i=-3;i<=3;i++) {
+          box(cityBase,.43,.022,1.65,laneMat,x+i*.67,.09,z-2.1,{castShadow:false,receiveShadow:false});
+          box(cityBase,.43,.022,1.65,laneMat,x+i*.67,.09,z+2.1,{castShadow:false,receiveShadow:false});
+          box(cityBase,1.65,.022,.43,laneMat,x-2.1,.09,z+i*.67,{castShadow:false,receiveShadow:false});
+          box(cityBase,1.65,.022,.43,laneMat,x+2.1,.09,z+i*.67,{castShadow:false,receiveShadow:false});
+        }
+      }
+
+      // Green corridor / public park at the southern edge; its paths and pond are modeled as geometry.
+      const grassMat = new THREE.MeshStandardMaterial({color:0xa7bd8a,roughness:.98,metalness:.01,map:grassTexture.clone()}), pathMat = makeMaterial(0xa5a18e,.94,.01), waterMat = new THREE.MeshStandardMaterial({color:0x42666a,roughness:.25,metalness:.16,transparent:true,opacity:.92});
+      grassMat.map.repeat.set(6, 3);
+      box(cityBase,30,.12,12.4,grassMat,-2.2,.02,31.1,{castShadow:false});
+      box(cityBase,27,.06,.78,pathMat,-2.2,.12,26.1,{castShadow:false});
+      box(cityBase,27,.06,.78,pathMat,-2.2,.12,36.1,{castShadow:false});
+      box(cityBase,.78,.06,9.5,pathMat,-15.3,.12,31.1,{castShadow:false});
+      box(cityBase,.78,.06,9.5,pathMat,10.9,.12,31.1,{castShadow:false});
+      const pond = new THREE.Mesh(new THREE.CircleGeometry(2.3,32),waterMat); pond.rotation.x=-Math.PI/2; pond.scale.set(1.55,.82,1); pond.position.set(-2.4,.105,31.1); cityBase.add(pond);
+      const pondEdge = new THREE.Mesh(new THREE.TorusGeometry(2.35,.11,6,48),pathMat); pondEdge.rotation.x=Math.PI/2; pondEdge.scale.set(1.55,.82,1); pondEdge.position.set(-2.4,.13,31.1); cityBase.add(pondEdge);
+      // Garden beds and trees use varied scales and organic, clustered crowns.
+      const bedMat = makeMaterial(0x314b3e,.98,.01);
+      for(const x of [-13,-8,3,8]) box(cityBase,1.35,.09,1.0,bedMat,x,.13,28.1,{castShadow:false});
+      const trunkMat = makeMaterial(0x554c40,.92,.02), lampMat = makeMaterial(0x59615e,.45,.58), lampGlowMat = makeMaterial(0xd9c9a2,.28,.08,0x9c8b68,.3);
+      for(let i=0;i<18;i++){
+        const x=-41+i*4.8;
+        if(Math.abs(x+2.2)<16) continue;
+        makeTree(x,-31.7,.82+(i%3)*.08,i);
+        makeTree(x,27,.75+(i%2)*.1,i+4);
+      }
+      // Linear street trees reinforce pedestrian corridors while leaving crossings and building entrances clear.
+      for(const z of [-14, -6, 6, 14]) for(const x of [-35,-25,-13,-7,7,13,25,35]) {
+        if (Math.abs(x)===13 && Math.abs(z)===6) continue;
+        makeTree(x,z,.63+((Math.abs(x+z)%3)*.055),Math.round(x+z));
+      }
+      // Park canopy clusters, kept lower than building roofs.
+      for(const p of [[-12,29.2],[-8,33.2],[4,29.3],[7,33.2],[-10,35.1],[5,35.1]]) makeTree(p[0],p[1],.78,Math.round(p[0]*2+p[1]));
+      // Streetlights combine visible emissive heads, animated point lights and soft pools on the pavement.
+      for(const p of [[-36,-13.4],[-16,-13.4],[4,-13.4],[24,-13.4],[44,-13.4],[-36,13.4],[-16,13.4],[4,13.4],[24,13.4],[44,13.4],[-23,0],[23,0],[-23,-24],[23,24]]) {
+        cylinder(streetLightGroup,.035,.055,2.65,lampMat,p[0],1.32,p[1],8);
+        box(streetLightGroup,.52,.065,.07,lampMat,p[0]+.19,2.62,p[1],{castShadow:false});
+        const bulb = new THREE.Mesh(
+          new THREE.SphereGeometry(.12,12,8),
+          new THREE.MeshBasicMaterial({ color:0xffe0a1, transparent:true, opacity:.98 })
+        );
+        bulb.position.set(p[0]+.42,2.56,p[1]); streetLightGroup.add(bulb);
+        const halo = new THREE.Mesh(
+          new THREE.SphereGeometry(.34,16,10),
+          new THREE.MeshBasicMaterial({ color:0xffc878, transparent:true, opacity:.18, depthWrite:false })
+        );
+        halo.position.copy(bulb.position); streetLightGroup.add(halo);
+        const cone = new THREE.Mesh(
+          new THREE.CylinderGeometry(.08,1.35,1.55,24,1,true),
+          new THREE.MeshBasicMaterial({ color:0xffc878, transparent:true, opacity:.065, side:THREE.DoubleSide, depthWrite:false })
+        );
+        cone.position.set(bulb.position.x, 1.8, bulb.position.z);
+        streetLightGroup.add(cone);
+        const lampLight = new THREE.PointLight(0xffbd66, 1.45, 10.5, 1.6);
+        lampLight.position.set(p[0]+.42, 2.45, p[1]); scene.add(lampLight);
+        const pool = new THREE.Mesh(
+          new THREE.CircleGeometry(2.15,40),
+          new THREE.MeshBasicMaterial({ color:0xffc878, transparent:true, opacity:.16, depthWrite:false })
+        );
+        pool.rotation.x = -Math.PI / 2; pool.position.set(p[0]+.42,.101,p[1]); streetLightGroup.add(pool);
+        streetLightSources.push({ light:lampLight, pool, bulb, halo, cone, phase:streetLightSources.length * .8 });
+      }
+      // A fine geographic guide appears only at the map perimeter, not under the whole city.
+      const boundaryMat = new THREE.MeshBasicMaterial({color:0x647d79,transparent:true,opacity:.28});
+      for(const p of [[24,.015,-52],[24,.015,58],[-56,.015,3],[104,.015,3]]) {
+        const mesh = Math.abs(p[0]-24)<.1 ? new THREE.Mesh(new THREE.BoxGeometry(160,.015,.035),boundaryMat) : new THREE.Mesh(new THREE.BoxGeometry(.035,.015,110),boundaryMat);
+        mesh.position.set(...p); cityBase.add(mesh);
+      }
+      // Rewilded perimeter: planted berms and tree clusters soften the city edge beyond the urban grid.
+      const outerGrass = new THREE.MeshStandardMaterial({color:0xa4ba82,roughness:.99,metalness:.01,map:grassTexture.clone()});
+      for (const patch of [
+        [-49, -42, 18, 8], [96, -42, 17, 8], [-49, 48, 18, 8], [94, 48, 19, 8],
+        [-52, 4, 6, 48], [100, 4, 6, 48]
+      ]) {
+        outerGrass.map.repeat.set(Math.max(2, patch[2] / 2.4), Math.max(2, patch[3] / 2.4));
+        box(cityBase, patch[2], .12, patch[3], outerGrass, patch[0], .02, patch[1], {castShadow:false});
+      }
+      for (let i = 0; i < 13; i++) {
+        const side = i % 2 ? 1 : -1;
+        makeTree(-51 + (i % 5) * 2.2, -38 + Math.floor(i / 5) * 7.2, .95 + (i % 3) * .12, i + 90);
+        makeTree(98 - (i % 5) * 2.1, 39 - Math.floor(i / 5) * 7.4, .9 + (i % 3) * .13, i + 120);
+        if (i < 9) makeTree(side * 50 + (i % 3) * side * 2.4, -18 + i * 4.1, .84 + (i % 2) * .15, i + 150);
+      }
+    }
+
+    function buildTrafficLayer() {
+      const flowMat = new THREE.MeshBasicMaterial({ color: 0x5fe4e8, transparent: true, opacity: .25, depthWrite: false });
+      for (const z of [-10, 10]) {
+        const line = new THREE.Mesh(new THREE.BoxGeometry(86, .018, .045), flowMat.clone()); line.position.set(0, .112, z + 1.3); trafficGroup.add(line); trafficFlowMaterials.push(line.material);
+      }
+      for (const x of [-20, 0, 20]) {
+        const line = new THREE.Mesh(new THREE.BoxGeometry(.045, .018, 68), flowMat.clone()); line.position.set(x + 1.3, .112, 0); trafficGroup.add(line); trafficFlowMaterials.push(line.material);
+      }
+      const carColors = [0x9fa8a6, 0x687e8a, 0xb1a18a, 0xd1d0c4, 0x718c79, 0x6e7387];
+      function car(path, fixed, offset, dir, color, speed) {
+        const group = new THREE.Group();
+        const bodyMat = makeMaterial(color, .36, .38);
+        const tireMat = makeMaterial(0x171b1d, .95, .02);
+        const windowMat = makeMaterial(0x294653, .2, .52);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.32, .31, .62), bodyMat); body.position.y = .31; group.add(body);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(.67, .26, .50), windowMat); cabin.position.set(-.08,.57,0); group.add(cabin);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(.49,.035,.46),bodyMat); roof.position.set(-.1,.72,0); group.add(roof);
+        for(const wx of [-.43,.42]) for(const wz of [-.32,.32]) {
+          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.09,10),tireMat); wheel.rotation.x=Math.PI/2; wheel.position.set(wx,.2,wz); group.add(wheel);
+        }
+        const headlightMat = new THREE.MeshBasicMaterial({color:0xe8ddba});
+        for(const side of [-1,1]) { const lamp=new THREE.Mesh(new THREE.BoxGeometry(.07,.055,.12),headlightMat); lamp.position.set(.665,.34,side*.19); group.add(lamp); }
+        group.userData = { path, fixed, offset, dir, speed };
+        trafficGroup.add(group); trafficCars.push(group);
+      }
+      let idx = 0;
+      for (const z of [-10, 10]) for (let j = 0; j < 3; j++) {
+        const dir = j % 2 ? -1 : 1; car('x', z + (j % 2 ? 1.3 : -1.3), -31 + j * 28 + z * .08, dir, carColors[idx++ % carColors.length], .8 + j * .16);
+      }
+      for (const x of [-20, 0, 20]) for (let j = 0; j < 2; j++) {
+        const dir = j % 2 ? -1 : 1; car('z', x + (j % 2 ? 1.3 : -1.3), -25 + j * 43 + x * .05, dir, carColors[idx++ % carColors.length], .7 + j * .19);
+      }
+    }
+
+    // REQ 4: the energy and public-transport overlays are independent toggleable scene groups.
+    function buildEnergyLayer() {
+      const maxEnergy = Math.max(...CITY_DATA.map(d => d.energyMWh));
+      for (const data of CITY_DATA) {
+        const height = .8 + (data.energyMWh / maxEnergy) * 3.0;
+        const color = new THREE.Color().setHSL(.35 - (data.energyMWh / maxEnergy) * .33, .88, .58);
+        const material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .9 });
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 1, 10), material);
+        beam.position.set(data.x + data.width / 2 + .75, .3 + data.height + height / 2, data.z);
+        beam.scale.y = height; energyGroup.add(beam);
+        const top = new THREE.Mesh(new THREE.SphereGeometry(.2, 10, 8), new THREE.MeshBasicMaterial({ color }));
+        top.position.set(beam.position.x, .3 + data.height + height, data.z); energyGroup.add(top);
+        const halo = new THREE.Mesh(new THREE.TorusGeometry(.42, .045, 6, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .8 }));
+        halo.rotation.x = Math.PI / 2; halo.position.set(beam.position.x, .32, data.z); energyGroup.add(halo);
+        energyIndicators.push({ data, beam, top, halo, material, baseHeight: height });
+      }
+    }
+    function buildTransitLayer() {
+      // Signature infrastructure: an elevated metro viaduct, a moving three-car train and illuminated station nodes.
+      const concrete = makeMaterial(0x6b7778, .72, .22);
+      const railMat = makeMaterial(0x465b60, .38, .72);
+      const lineMat = new THREE.MeshBasicMaterial({ color: 0x67dce0, transparent: true, opacity: .86 });
+      box(transitGroup, 2.65, .34, 76, concrete, 0, 3.05, 0, { castShadow:true });
+      for (const x of [-.72,.72]) {
+        box(transitGroup, .10, .08, 76, railMat, x, 3.27, 0, { castShadow:false });
+        box(transitGroup, .045, .035, 74, lineMat, x, 3.33, 0, { castShadow:false });
+      }
+      for (let z=-32; z<=32; z+=10.7) {
+        for (const x of [-1.12,1.12]) box(transitGroup,.22,2.72,.30,concrete,x,1.42,z,{castShadow:true});
+      }
+      // Station platform beside the named Greenline Station building.
+      box(transitGroup, 5.0, .22, 7.5, concrete, 3.9, 2.55, 0, {castShadow:true});
+      box(transitGroup, 5.2, .12, 7.7, makeMaterial(0x82918d,.58,.25), 3.9, 2.72, 0, {castShadow:false});
+      for (const z of [-2.3,2.3]) {
+        box(transitGroup, .10, 1.15, .10, railMat, 3.9, 3.28, z, {castShadow:false});
+      }
+      const canopyMat = new THREE.MeshStandardMaterial({ color:0x536b70, roughness:.3, metalness:.58, transparent:true, opacity:.88 });
+      box(transitGroup, 5.5, .12, 4.6, canopyMat, 3.9, 4.0, 0, {castShadow:false});
+      for (const x of [1.45,6.35]) for (const z of [-1.8,1.8]) cylinder(transitGroup,.045,.06,1.25,railMat,x,3.38,z,8);
+      const nodeMat = new THREE.MeshBasicMaterial({ color: 0x70e3df, transparent: true, opacity: .8 });
+      for (const z of [-30,-10,10,30]) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(.62,.045,7,32), nodeMat.clone());
+        ring.rotation.x=Math.PI/2; ring.position.set(0,.18,z); transitGroup.add(ring);
+      }
+      // Three-car train with dark glazing; animated along the elevated guideway.
+      metroTrain = new THREE.Group();
+      const trainBody = makeMaterial(0xd5d7d0,.32,.46);
+      const trainGlass = makeMaterial(0x183b48,.18,.62,0x0a2730,.16);
+      const trainAccent = makeMaterial(0x52cbd0,.3,.45,0x1a7d83,.25);
+      for(let carIndex=0;carIndex<3;carIndex++) {
+        const z=carIndex*3.35;
+        box(metroTrain,1.48,.82,3.15,trainBody,0,0,z);
+        box(metroTrain,1.50,.10,3.12,trainAccent,0,-.31,z,{castShadow:false});
+        for(const side of [-1,1]) for(let w=0;w<4;w++) {
+          box(metroTrain,.035,.38,.52,trainGlass,side*.755,.10,z-1.12+w*.72,{castShadow:false,receiveShadow:false});
+        }
+        box(metroTrain,1.15,.12,2.85,makeMaterial(0x9aa6a2,.4,.3),0,.45,z,{castShadow:false});
+      }
+      const frontGlass = box(metroTrain,1.12,.44,.045,trainGlass,0,.12,-1.60,{castShadow:false});
+      metroTrain.position.set(0,3.78,-35); transitGroup.add(metroTrain);
+      // Route branch links the elevated station to the Greenline station forecourt.
+      box(transitGroup,7.5,.26,1.85,concrete,3.7,3.02,0,{castShadow:true});
+      box(transitGroup,7.3,.06,.075,lineMat,3.7,3.22,-.55,{castShadow:false});
+      box(transitGroup,7.3,.06,.075,lineMat,3.7,3.22,.55,{castShadow:false});
+    }
+
+    function buildSignatureElements() {
+      // CITYVERSE signature landmark: a restrained civic beacon at the north gateway.
+      const stone = makeMaterial(0x77817d,.55,.34);
+      const dark = makeMaterial(0x25383e,.32,.62);
+      const cyan = new THREE.MeshStandardMaterial({color:0x62dce0,emissive:0x167c82,emissiveIntensity:.7,roughness:.22,metalness:.45});
+      const warm = new THREE.MeshStandardMaterial({color:0xe1c49a,emissive:0x9c6032,emissiveIntensity:.28,roughness:.36,metalness:.32});
+      const x=-8.5,z=-34.5;
+      cylinder(signatureGroup,3.5,4.0,.38,stone,x,.2,z,48);
+      cylinder(signatureGroup,2.7,3.05,.28,dark,x,.52,z,48);
+      cylinder(signatureGroup,.92,1.28,8.5,stone,x,4.8,z,24);
+      cylinder(signatureGroup,.58,.92,2.3,dark,x,10.1,z,24);
+      // Vertical fins and open ring crown create a distinctive silhouette without turning the skyline into neon.
+      for(let i=0;i<8;i++) {
+        const a=i*Math.PI/4;
+        const fin=box(signatureGroup,.14,6.3,.22,dark,Math.cos(a)*1.1,6.0, z+Math.sin(a)*1.1,{castShadow:true});
+        fin.rotation.y=-a;
+      }
+      for(const y of [7.1,9.3,11.1]) {
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(y===11.1?1.55:1.32,.075,8,64),y===11.1?warm:cyan);
+        ring.rotation.x=Math.PI/2; ring.position.set(x,y,z); signatureGroup.add(ring); animatedRings.push(ring);
+      }
+      const crown = new THREE.Mesh(new THREE.SphereGeometry(.42,20,16),cyan); crown.position.set(x,12.55,z); signatureGroup.add(crown);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(.10,.55,4.2,18,1,true),new THREE.MeshBasicMaterial({color:0x69dfe3,transparent:true,opacity:.10,side:THREE.DoubleSide,depthWrite:false}));
+      beam.position.set(x,14.55,z); signatureGroup.add(beam);
+      // Gateway plaza paving and radial inlays.
+      const plaza=makeMaterial(0x777c74,.88,.12), inlay=new THREE.MeshBasicMaterial({color:0x89b8b4,transparent:true,opacity:.38});
+      cylinder(signatureGroup,5.1,5.4,.12,plaza,x,.05,z,64);
+      for(let i=0;i<16;i++) {
+        const a=i*Math.PI/8;
+        const mark=box(signatureGroup,1.1,.018,.045,inlay,x+Math.cos(a)*4.25,.125,z+Math.sin(a)*4.25,{castShadow:false,receiveShadow:false});
+        mark.rotation.y=-a;
+      }
+      // Pedestrian skybridge: a glass-and-steel connector spanning the avenue between two anchor buildings.
+      const bridgeSteel=makeMaterial(0x56666a,.34,.68);
+      const bridgeGlass=new THREE.MeshStandardMaterial({color:0x75a5aa,roughness:.16,metalness:.42,transparent:true,opacity:.48});
+      box(signatureGroup,13.35,.30,1.75,bridgeSteel,-20.1,9.75,-20,{castShadow:true});
+      box(signatureGroup,13.1,.08,1.48,bridgeGlass,-20.1,9.94,-20,{castShadow:false});
+      for(const side of [-1,1]) {
+        box(signatureGroup,13.25,.48,.075,bridgeGlass,-20.1,10.20,-20+side*.79,{castShadow:false});
+        box(signatureGroup,13.35,.075,.09,bridgeSteel,-20.1,10.48,-20+side*.79,{castShadow:false});
+      }
+      for(const xPos of [-25,-22.5,-20,-17.5,-15]) {
+        box(signatureGroup,.055,.42,1.58,bridgeSteel,xPos,10.17,-20,{castShadow:false});
+      }
+      // Three wind turbines at the district edge add a readable renewable-energy landmark.
+      const mastMat=makeMaterial(0xa4b0aa,.42,.58), bladeMat=makeMaterial(0xd6ded8,.34,.52);
+      for(const [tx,tz] of [[-45,-29],[45,-29],[45,33]]) {
+        cylinder(signatureGroup,.11,.19,9.2,mastMat,tx,4.62,tz,12);
+        const rotor=new THREE.Group(); rotor.position.set(tx,9.35,tz); signatureGroup.add(rotor);
+        cylinder(rotor,.23,.23,.35,dark,0,0,0,12);
+        for(let b=0;b<3;b++) {
+          const blade=box(rotor,.20,3.45,.11,bladeMat,0,1.72,0,{castShadow:true});
+          blade.rotation.z=b*Math.PI*2/3;
+          // Move each blade out from the hub along its own radial direction.
+          blade.position.set(Math.sin(b*Math.PI*2/3)*1.72,Math.cos(b*Math.PI*2/3)*1.72,0);
+        }
+        turbineRotors.push(rotor);
+      }
+      // Reflective park pond jets and water rings are animated in the render loop.
+      const waterJetMat=new THREE.MeshBasicMaterial({color:0x77d7d9,transparent:true,opacity:.34,depthWrite:false});
+      for(let i=0;i<3;i++) {
+        const jet=new THREE.Mesh(new THREE.CylinderGeometry(.035,.07,1.1,10),waterJetMat.clone());
+        jet.position.set(-2.4+(i-1)*.66,.62,31.1); signatureGroup.add(jet);
+        fountainJets.push({mesh:jet,phase:i*1.9,base:.62});
+      }
+      const waterRingMat=new THREE.MeshBasicMaterial({color:0x81cfd0,transparent:true,opacity:.36,depthWrite:false});
+      for(let i=0;i<2;i++) {
+        const r=new THREE.Mesh(new THREE.TorusGeometry(.22+i*.18,.018,5,32),waterRingMat.clone());
+        r.rotation.x=Math.PI/2; r.position.set(-2.4,.14,31.1); signatureGroup.add(r); animatedRings.push(r);
+      }
+    }
+
+    // AIRPORT: a complete procedural airfield linked to the selectable Nova International Airport location.
+    function buildAirport() {
+      const airport = new THREE.Group(); airport.position.set(0,0,0); cityBase.add(airport);
+      const asphalt=makeMaterial(0x252d32,.96,.03), concrete=makeMaterial(0x737b78,.88,.06), marking=new THREE.MeshBasicMaterial({color:0xe9e8d9}), yellow=new THREE.MeshBasicMaterial({color:0xe8bd67});
+      const terminalX=66, runwayX=70, runwayZ=42;
+      // Runway apron and taxiway are separate paved surfaces with visible aircraft-ground markings.
+      box(airport,60,.16,11.5,asphalt,runwayX,.02,runwayZ,{castShadow:false});
+      box(airport,25,.13,10.4,concrete,terminalX,.025,25.0,{castShadow:false});
+      box(airport,5.2,.12,12.0,asphalt,terminalX,.02,33.0,{castShadow:false});
+      box(airport,23,.10,8.8,concrete,terminalX, .03,18.2,{castShadow:false});
+      // Runway centreline dashes and threshold bars.
+      for(let x=runwayX-25;x<=runwayX+25;x+=6) box(airport,2.5,.018,.16,marking,x,.115,runwayZ,{castShadow:false,receiveShadow:false});
+      for(const end of [-1,1]) {
+        const x=runwayX+end*27.0;
+        for(let i=-4;i<=4;i++) box(airport,.5,.02,3.2,marking,x,i*.82+runwayZ,.12,{castShadow:false,receiveShadow:false});
+        for(const zSide of [-1,1]) for(let i=0;i<10;i++) {
+          const light=new THREE.Mesh(new THREE.SphereGeometry(.075,8,6),new THREE.MeshBasicMaterial({color:0xbde7e8}));
+          light.position.set(x+end*1.5, .22, runwayZ+zSide*5.15+(i-4.5)*.9); airport.add(light);
+        }
+      }
+      // Yellow taxiway edge guidance and turning apron connectors.
+      box(airport,.10,.022,12.5,yellow,terminalX-2.0,.13,31.8,{castShadow:false,receiveShadow:false});
+      box(airport,.10,.022,12.5,yellow,terminalX+2.0,.13,31.8,{castShadow:false,receiveShadow:false});
+      for(const x of [terminalX-10,terminalX+10]) box(airport,.14,.018,7.0,yellow,x,.12,21.5,{castShadow:false,receiveShadow:false});
+      // Apron stands, aircraft stand numbers and boarding bridge fingers.
+      const standMat=makeMaterial(0x8c938e,.72,.12);
+      for(let i=-3;i<=3;i++) {
+        const x=terminalX+i*3.0;
+        box(airport,.07,.018,5.2,marking,x,.13,24.0,{castShadow:false,receiveShadow:false});
+        box(airport,1.1,.04,.10,standMat,x,.14,21.25,{castShadow:false});
+        if(i%2===0) { const pole=cylinder(airport,.035,.045,1.0,standMat,x,1.0,20.4,8); box(airport,.28,.08,.12,marking,x,1.55,20.4,{castShadow:false}); }
+      }
+      // A tiny service-road loop and carpark make the airport feel connected to the city.
+      box(airport,27,.12,2.5,asphalt,terminalX,.02,7.0,{castShadow:false});
+      // Dedicated access spur ties the airport forecourt into the eastern city arterial.
+      box(airport,18,.13,3.8,asphalt,49,.025,12.5,{castShadow:false});
+      box(airport,16,.018,.07,marking,49,.11,12.5,{castShadow:false,receiveShadow:false});
+      for(let x=terminalX-10;x<=terminalX+10;x+=2.5) box(airport,1.3,.015,.045,marking,x,.09,7.0,{castShadow:false,receiveShadow:false});
+      // Stylized passenger jet, all geometry generated in Three.js primitives.
+      airportAircraft=new THREE.Group();
+      const fuselageMat=makeMaterial(0xdce2df,.28,.58), wingMat=makeMaterial(0x9da9a8,.34,.56), windowMat=new THREE.MeshBasicMaterial({color:0x315664});
+      const fuselage=new THREE.Mesh(new THREE.CylinderGeometry(.30,.42,7.2,16),fuselageMat); fuselage.rotation.z=-Math.PI/2; airportAircraft.add(fuselage);
+      const nose=new THREE.Mesh(new THREE.SphereGeometry(.37,16,10),fuselageMat); nose.scale.set(1.18,.78,.78); nose.position.x=3.5; airportAircraft.add(nose);
+      const tailCone=new THREE.Mesh(new THREE.ConeGeometry(.43,1.35,12),fuselageMat); tailCone.rotation.z=Math.PI/2; tailCone.position.x=-4.0; airportAircraft.add(tailCone);
+      const wings=new THREE.Mesh(new THREE.BoxGeometry(1.25,.12,8.6),wingMat); wings.position.set(.25,-.05,0); airportAircraft.add(wings);
+      const tailWing=new THREE.Mesh(new THREE.BoxGeometry(.72,.10,3.15),wingMat); tailWing.position.set(-3.25,.22,0); airportAircraft.add(tailWing);
+      const tailFin=new THREE.Mesh(new THREE.BoxGeometry(.13,1.22,1.05),wingMat); tailFin.position.set(-3.38,.72,0); airportAircraft.add(tailFin);
+      for(let side of [-1,1]) for(let i=0;i<8;i++) {
+        const win=new THREE.Mesh(new THREE.SphereGeometry(.085,8,6),windowMat); win.scale.set(1,.6,.55); win.position.set(2.1-i*.48,.18,side*.31); airportAircraft.add(win);
+      }
+      airportAircraft.position.set(runwayX-26,1.75,runwayZ); airport.add(airportAircraft);
+      // Airport identity label is visible from the aerial overview.
+      const label=makeWorldLabel('NOVA INTERNATIONAL AIRPORT','AIR GATEWAY  /  RUNWAY 09–27',0xffd28a);
+      label.position.set(terminalX,12.2,terminalZForLabel()); label.scale.set(8.4,1.25,1); airport.add(label);
+    }
+    function terminalZForLabel(){ return 14; }
+
+    // HYPERLOOP: an elevated transparent maglev tube with structural pylons and an animated train.
+    function buildHyperloop() {
+      const supportMat=makeMaterial(0x667b80,.42,.58), darkMat=makeMaterial(0x253e49,.25,.72);
+      const tubeMat=new THREE.MeshPhysicalMaterial({color:0x8bdce0,roughness:.12,metalness:.18,transparent:true,opacity:.16,side:THREE.DoubleSide,depthWrite:false,clearcoat:.85,clearcoatRoughness:.12});
+      const tube=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.0,90,32,1,true),tubeMat);
+      tube.rotation.z=Math.PI/2; tube.position.set(0,16.2,-28); hyperloopGroup.add(tube);
+      const innerRail=new THREE.MeshBasicMaterial({color:0x6bdde1,transparent:true,opacity:.72});
+      for(const z of [-28.42,-27.58]) {
+        const rail=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,88,10),innerRail); rail.rotation.z=Math.PI/2; rail.position.set(0,16.0,z); hyperloopGroup.add(rail);
+      }
+      const ribMat=new THREE.MeshStandardMaterial({color:0x8ea4a4,roughness:.34,metalness:.72});
+      for(let x=-42;x<=42;x+=6) {
+        const rib=new THREE.Mesh(new THREE.TorusGeometry(1.035,.035,8,36),ribMat);
+        rib.rotation.y=Math.PI/2; rib.position.set(x,16.2,-28); hyperloopGroup.add(rib);
+      }
+      for(const x of [-42,-28,-14,0,14,28,42]) {
+        // Twin tapered pylons and a crosshead carry the elevated guide tube.
+        const left=cylinder(hyperloopGroup,.24,.42,15.6,supportMat,x,8.0,-29.0,10);
+        const right=cylinder(hyperloopGroup,.24,.42,15.6,supportMat,x,8.0,-27.0,10);
+        left.rotation.z=.035; right.rotation.z=-.035;
+        box(hyperloopGroup,2.45,.34,.40,supportMat,x,15.6,-28,{castShadow:true});
+        box(hyperloopGroup,2.0,.075,.48,darkMat,x,15.84,-28,{castShadow:false});
+      }
+      // Three-part streamlined pod, deliberately visible through the tube wall.
+      hyperloopTrain=new THREE.Group();
+      const podMat=new THREE.MeshStandardMaterial({color:0xd8e1dd,roughness:.22,metalness:.66});
+      const podGlass=new THREE.MeshStandardMaterial({color:0x173c4a,roughness:.16,metalness:.52,emissive:0x08242d,emissiveIntensity:.22});
+      const glowMat=new THREE.MeshBasicMaterial({color:0x6ee8ed});
+      for(let i=0;i<2;i++) {
+        const x=i*2.65;
+        box(hyperloopTrain,2.65,.56,.72,podMat,x,0,0,{castShadow:false});
+        for(const side of [-1,1]) {
+          box(hyperloopTrain,2.05,.27,.035,podGlass,x,.09,side*.37,{castShadow:false,receiveShadow:false});
+          box(hyperloopTrain,2.18,.045,.04,glowMat,x,-.23,side*.38,{castShadow:false,receiveShadow:false});
+        }
+      }
+      const nose1=new THREE.Mesh(new THREE.SphereGeometry(.43,16,12),podMat); nose1.scale.set(1.2,.72,.82); nose1.position.set(-1.45,0,0); hyperloopTrain.add(nose1);
+      const nose2=new THREE.Mesh(new THREE.SphereGeometry(.43,16,12),podMat); nose2.scale.set(1.2,.72,.82); nose2.position.set(4.1,0,0); hyperloopTrain.add(nose2);
+      for(const x of [-.65,2.0,4.0]) for(const z of [-.28,.28]) {
+        const coil=new THREE.Mesh(new THREE.TorusGeometry(.17,.035,6,18),glowMat); coil.position.set(x,-.35,z); coil.rotation.y=Math.PI/2; hyperloopTrain.add(coil);
+      }
+      hyperloopTrain.position.set(-43,16.2,-28); hyperloopGroup.add(hyperloopTrain);
+      const label=makeWorldLabel('MAGLEV / HYPERLOOP','VACUUM-ASSISTED SKY CORRIDOR',0x79e3e4);
+      label.position.set(-30,18.2,-28); label.scale.set(6.8,1.12,1); hyperloopGroup.add(label);
+    }
+
+    // BORING LOOP: a cutaway underground electric-pod network with visible stations and entry ramps.
+    function buildUndergroundLoop() {
+      const tunnelMat = new THREE.MeshPhysicalMaterial({ color:0x42636b, roughness:.18, metalness:.26, transparent:true, opacity:.28, side:THREE.DoubleSide, depthWrite:false });
+      const liningMat = makeMaterial(0x5e7779,.48,.38);
+      const railMat = new THREE.MeshBasicMaterial({ color:0x76e7e4, transparent:true, opacity:.8 });
+      const stationMat = makeMaterial(0x879a91,.46,.34);
+      const glassMat = new THREE.MeshStandardMaterial({ color:0x183f4b, roughness:.14, metalness:.4, emissive:0x0c5a62, emissiveIntensity:.42, transparent:true, opacity:.8 });
+      const loopPoints = [
+        new THREE.Vector3(-43,-3.0,-25), new THREE.Vector3(-28,-3.0,-25),
+        new THREE.Vector3(-28,-3.0,24), new THREE.Vector3(2,-3.0,24),
+        new THREE.Vector3(2,-3.0,-25), new THREE.Vector3(43,-3.0,-25),
+        new THREE.Vector3(43,-3.0,24), new THREE.Vector3(-43,-3.0,24)
+      ];
+      undergroundCurve = new THREE.CatmullRomCurve3(loopPoints, true, 'centripetal');
+      undergroundGroup.add(new THREE.Mesh(new THREE.TubeGeometry(undergroundCurve,220,.72,18,true), tunnelMat));
+      undergroundGroup.add(new THREE.Mesh(new THREE.TubeGeometry(undergroundCurve,220,.15,8,true), railMat));
+      for (let i=0; i<16; i++) {
+        const point = undergroundCurve.getPointAt(i / 16);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(.78,.045,7,28), liningMat);
+        ring.position.copy(point); ring.rotation.x = Math.PI / 2; undergroundGroup.add(ring);
+      }
+      const stations = [
+        { name:'NOVA CENTRAL', x:-28, z:-25 },
+        { name:'RIVERFRONT', x:2, z:24 },
+        { name:'AIRPORT LINK', x:43, z:-25 },
+        { name:'EAST GATE', x:43, z:24 }
+      ];
+      for (const station of stations) {
+        box(undergroundGroup,5.2,.22,3.8,stationMat,station.x,-.82,station.z,{castShadow:true});
+        box(undergroundGroup,4.4,.08,2.7,glassMat,station.x,-.68,station.z,{castShadow:false});
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.72,.72,3.2,16),glassMat);
+        shaft.position.set(station.x,-.05,station.z); undergroundGroup.add(shaft);
+        const stationLight = new THREE.PointLight(0x66e4e3,.9,8,2);
+        stationLight.position.set(station.x,-.45,station.z); undergroundGroup.add(stationLight);
+        const label = makeWorldLabel(station.name,'BORING LOOP STATION',0x72e7e2);
+        label.position.set(station.x,1.25,station.z); label.scale.set(3.2,.58,1); undergroundGroup.add(label);
+      }
+      for (const [x,z] of [[-28,-25],[43,-25]]) {
+        const ramp = new THREE.Mesh(new THREE.TorusGeometry(2.5,.18,8,32,Math.PI),liningMat);
+        ramp.rotation.x = Math.PI / 2; ramp.position.set(x,.04,z); undergroundGroup.add(ramp);
+        box(undergroundGroup,3.2,.08,1.1,railMat,x,-.35,z,{castShadow:false});
+      }
+      undergroundPod = new THREE.Group();
+      const podBody = makeMaterial(0xd5e2dc,.2,.62);
+      box(undergroundPod,2.6,.62,1.05,podBody,0,0,0,{castShadow:false});
+      box(undergroundPod,1.75,.28,.05,glassMat,0,.12,-.54,{castShadow:false,receiveShadow:false});
+      box(undergroundPod,1.75,.05,.06,railMat,0,-.3,.55,{castShadow:false,receiveShadow:false});
+      undergroundPod.position.copy(undergroundCurve.getPointAt(0)); undergroundGroup.add(undergroundPod);
+      const label = makeWorldLabel('BORING LOOP','ZERO-EMISSION UNDERGROUND TRANSIT',0xffc878);
+      label.position.set(0,1.5,24); label.scale.set(6.2,1.0,1); undergroundGroup.add(label);
+    }
+
+    // AERIAL MOBILITY: three autonomous flying cars follow a raised, curved sky-lane around Nova City.
+    function makeFlyingCar() {
+      const car=new THREE.Group();
+      const bodyMat=new THREE.MeshStandardMaterial({color:0xd7ddd8,roughness:.24,metalness:.62});
+      const glassMat=new THREE.MeshStandardMaterial({color:0x183c4a,roughness:.13,metalness:.54,emissive:0x092a34,emissiveIntensity:.24});
+      const cyanMat=new THREE.MeshBasicMaterial({color:0x66e0e6});
+      const body=new THREE.Mesh(new THREE.BoxGeometry(1.28,.38,2.1),bodyMat); body.position.y=0; car.add(body);
+      const nose=new THREE.Mesh(new THREE.SphereGeometry(.55,14,10),bodyMat); nose.scale.set(1.06,.42,1.18); nose.position.z=1.0; car.add(nose);
+      const canopy=new THREE.Mesh(new THREE.SphereGeometry(.55,16,12),glassMat); canopy.scale.set(.78,.55,.96); canopy.position.set(0,.30,-.12); car.add(canopy);
+      const underglow=new THREE.Mesh(new THREE.BoxGeometry(1.12,.045,1.7),cyanMat); underglow.position.y=-.22; car.add(underglow);
+      const rotors=[];
+      for(const x of [-.82,.82]) for(const z of [-.72,.72]) {
+        const rotor=new THREE.Group(); rotor.position.set(x,-.05,z); car.add(rotor);
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(.29,.045,7,22),bodyMat); ring.rotation.x=Math.PI/2; rotor.add(ring);
+        const fan=new THREE.Mesh(new THREE.BoxGeometry(.48,.035,.07),cyanMat); rotor.add(fan);
+        const fan2=fan.clone(); fan2.rotation.y=Math.PI/2; rotor.add(fan2);
+        rotors.push(rotor);
+      }
+      for(const side of [-1,1]) {
+        const lamp=new THREE.Mesh(new THREE.SphereGeometry(.07,8,6),new THREE.MeshBasicMaterial({color:side===-1?0xff8a78:0x81f0de}));
+        lamp.position.set(side*.55,.03,1.72); car.add(lamp);
+      }
+      return {mesh:car,rotors};
+    }
+    function makeWorldLabel(title,subtitle,color=0x7ce2e4) {
+      const canvas=document.createElement('canvas'); canvas.width=640; canvas.height=112;
+      const ctx=canvas.getContext('2d'); ctx.fillStyle='rgba(7,17,27,.86)'; ctx.fillRect(0,0,640,112);
+      ctx.strokeStyle='#'+color.toString(16).padStart(6,'0'); ctx.globalAlpha=.78; ctx.lineWidth=2; ctx.strokeRect(2,2,636,108); ctx.globalAlpha=1;
+      ctx.fillStyle='#f0f6f2'; ctx.font='700 28px system-ui'; ctx.fillText(title,20,46);
+      ctx.fillStyle='#9ac6c8'; ctx.font='600 16px system-ui'; ctx.fillText(subtitle,21,78);
+      const tex=new THREE.CanvasTexture(canvas); tex.colorSpace=THREE.SRGBColorSpace;
+      return new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false}));
+    }
+    function buildAirMobility() {
+      const points=[
+        new THREE.Vector3(-43,24,-25),new THREE.Vector3(-37,26,-37),new THREE.Vector3(-8,25,-40),
+        new THREE.Vector3(28,27,-37),new THREE.Vector3(45,24,-18),new THREE.Vector3(45,25,18),
+        new THREE.Vector3(28,27,36),new THREE.Vector3(-12,25,39),new THREE.Vector3(-42,23,20)
+      ];
+      const curve=new THREE.CatmullRomCurve3(points,true,'centripetal');
+      const lane=new THREE.Mesh(new THREE.TubeGeometry(curve,180,.035,6,true),new THREE.MeshBasicMaterial({color:0x5bd4db,transparent:true,opacity:.20,depthWrite:false}));
+      airMobilityGroup.add(lane);
+      const nodeMat=new THREE.MeshBasicMaterial({color:0x6fe6e5,transparent:true,opacity:.62});
+      for(let i=0;i<9;i++) {
+        const pt=curve.getPointAt(i/9);
+        const node=new THREE.Mesh(new THREE.TorusGeometry(.42,.035,6,24),nodeMat); node.position.copy(pt); node.rotation.x=Math.PI/2; airMobilityGroup.add(node);
+      }
+      for(let i=0;i<4;i++) {
+        const flyer=makeFlyingCar(); flyer.mesh.scale.setScalar(.92+(i%2)*.10); airMobilityGroup.add(flyer.mesh);
+        airCars.push({mesh:flyer.mesh,rotors:flyer.rotors,curve,phase:i/4,speed:.018+i*.0017});
+      }
+      const label=makeWorldLabel('AERIAL MOBILITY NETWORK','AUTONOMOUS ELECTRIC AIR TAXIS',0x78e2e6);
+      label.position.set(0,29.5,39); label.scale.set(7.2,1.25,1); airMobilityGroup.add(label);
+    }
+
+    // Large civic fountain plaza: stepped stone basin, radial jets and expanding water ripples.
+    function buildGrandFountain() {
+      const fx=41,fz=9;
+      const stone=makeMaterial(0x8d958e,.48,.28), dark=makeMaterial(0x344b4e,.24,.42);
+      const water=new THREE.MeshStandardMaterial({color:0x3f8c91,roughness:.12,metalness:.42,transparent:true,opacity:.82,emissive:0x0b3439,emissiveIntensity:.16});
+      const base=cylinder(signatureGroup,6.0,6.5,.34,stone,fx,.18,fz,64); base.scale.z=.83;
+      const outer=cylinder(signatureGroup,4.95,5.25,.42,dark,fx,.56,fz,64); outer.scale.z=.83;
+      const inner=cylinder(signatureGroup,4.45,4.75,.18,stone,fx,.85,fz,64); inner.scale.z=.83;
+      const pool=new THREE.Mesh(new THREE.CircleGeometry(4.35,64),water); pool.rotation.x=-Math.PI/2; pool.scale.set(1,.83,1); pool.position.set(fx,1.0,fz); signatureGroup.add(pool);
+      const rim=new THREE.Mesh(new THREE.TorusGeometry(4.62,.095,8,72),makeMaterial(0xb5c1b5,.28,.62)); rim.rotation.x=Math.PI/2; rim.scale.set(1,.83,1); rim.position.set(fx,1.02,fz); signatureGroup.add(rim);
+      const centralTier=cylinder(signatureGroup,.92,1.28,.62,stone,fx,1.18,fz,40);
+      const centralWater=cylinder(signatureGroup,.73,.73,.08,water,fx,1.53,fz,40);
+      const jetMat=new THREE.MeshBasicMaterial({color:0x89eef0,transparent:true,opacity:.48,depthWrite:false});
+      const jetPoints=[[0,0,2.8]];
+      for(let i=0;i<8;i++) { const a=i*Math.PI/4; jetPoints.push([Math.cos(a)*2.65,Math.sin(a)*2.2,1.65]); }
+      jetPoints.forEach((v,i)=>{
+        const jet=new THREE.Mesh(new THREE.CylinderGeometry(i===0?.055:.035,i===0?.10:.065,v[2],10),jetMat.clone());
+        jet.position.set(fx+v[0],1.0+v[2]/2,fz+v[1]); signatureGroup.add(jet);
+        fountainJets.push({mesh:jet,phase:i*1.07,base:1.0+v[2]/2});
+      });
+      for(let i=0;i<3;i++) {
+        const ripple=new THREE.Mesh(new THREE.TorusGeometry(.55+i*.45,.025,6,40),new THREE.MeshBasicMaterial({color:0x9be9e6,transparent:true,opacity:.42-i*.08,depthWrite:false}));
+        ripple.rotation.x=Math.PI/2; ripple.scale.set(1,.83,1); ripple.position.set(fx,1.08+i*.01,fz); signatureGroup.add(ripple);
+        fountainRipples.push({mesh:ripple,phase:i*.9});
+      }
+      const plaza=makeMaterial(0x858a7f,.86,.08);
+      const plazaPad=box(signatureGroup,14,.12,13,plaza,fx,.015,fz,{castShadow:false}); plazaPad.position.y=.015;
+      // Low planting islands frame the water while leaving open sight lines to the museum.
+      for(const a of [0,Math.PI/2,Math.PI,Math.PI*1.5]) {
+        const px=fx+Math.cos(a)*7.0,pz=fz+Math.sin(a)*6.0;
+        const bed=box(signatureGroup,1.8,.12,1.2,makeMaterial(0x405d46,.96,.01),px,.12,pz,{castShadow:false}); bed.rotation.y=-a;
+        for(let j=0;j<3;j++) {
+          const shrub=new THREE.Mesh(new THREE.SphereGeometry(.28,9,7),makeMaterial([0x4b7653,0x66815b,0x3c684b][j],.95,.01));
+          shrub.position.set(px+(j-1)*.35,.48,pz); shrub.scale.y=.72; signatureGroup.add(shrub);
+        }
+      }
+
+      // Three distributed waterfall gardens make the city feel hydrated and inhabited beyond the central plaza.
+      function buildWaterfallGardens() {
+        const stone = makeMaterial(0x687a75,.58,.32);
+        const edge = makeMaterial(0x9ca99e,.45,.28);
+        const water = new THREE.MeshStandardMaterial({ color:0x5caeb2, roughness:.08, metalness:.34, transparent:true, opacity:.84, emissive:0x0b4b50, emissiveIntensity:.3 });
+        const glow = new THREE.MeshBasicMaterial({ color:0x9af5ed, transparent:true, opacity:.82, depthWrite:false });
+        const locations = [
+          { x:-16, z:30.2, scale:1.18, rotation:0 },
+          { x:18, z:30.2, scale:1.04, rotation:Math.PI },
+          { x:48, z:21.5, scale:.96, rotation:-Math.PI / 2 }
+        ];
+        for (const [featureIndex, location] of locations.entries()) {
+          const root = new THREE.Group();
+          root.position.set(location.x, 0, location.z);
+          root.rotation.y = location.rotation;
+          root.scale.setScalar(location.scale);
+          waterfallGroup.add(root);
+          box(root, 5.8, .18, 3.2, stone, 0, .13, 0, { castShadow:true });
+          box(root, 4.9, .14, 2.5, water, 0, .28, .12, { castShadow:false });
+          for (let tier = 0; tier < 3; tier++) {
+            const width = 4.5 - tier * .7;
+            const height = 1.0;
+            const y = .52 + tier * 1.0;
+            box(root, width, .22, 1.45, edge, 0, y, -.2, { castShadow:true });
+            box(root, width - .22, .08, 1.08, water, 0, y + .14, -.92, { castShadow:false });
+            const stream = new THREE.Mesh(new THREE.BoxGeometry(width - .3, .92, .075), glow.clone());
+            stream.position.set(0, y - .42, -.91);
+            root.add(stream);
+            waterfallStreams.push({ mesh:stream, base:stream.scale.y, phase:featureIndex * 1.4 + tier * .6 });
+          }
+          const crest = new THREE.Mesh(new THREE.BoxGeometry(3.55, .08, .08), glow.clone());
+          crest.position.set(0, 3.55, -.92); root.add(crest);
+          const pool = new THREE.Mesh(new THREE.CircleGeometry(1.15,32), water);
+          pool.rotation.x = -Math.PI / 2; pool.scale.set(2.15, .72, 1); pool.position.set(0, .39, 1.0); root.add(pool);
+          for (let rippleIndex = 0; rippleIndex < 3; rippleIndex++) {
+            const ripple = new THREE.Mesh(new THREE.TorusGeometry(.45 + rippleIndex * .22, .025, 6, 32), glow.clone());
+            ripple.rotation.x = Math.PI / 2;
+            ripple.scale.set(1.8, .68, 1);
+            ripple.position.set(0, .43, .9);
+            root.add(ripple);
+            waterfallRipples.push({ mesh:ripple, phase:featureIndex * .9 + rippleIndex * .35 });
+          }
+          const accentLight = new THREE.PointLight(0x70e8e4, .9, 11, 2);
+          accentLight.position.set(0, 1.8, -.8);
+          root.add(accentLight);
+          const label = makeWorldLabel('WATERFALL GARDEN', 'BLUE-GREEN PUBLIC REALM', 0x8ff5ef);
+          label.position.set(0, 4.25, 0);
+          label.scale.set(3.2, .58, 1);
+          root.add(label);
+        }
+      }
+      buildWaterfallGardens();
+    }
+
+    function buildInterventionElements() {
+      // Each policy intervention has its own group so the scene can show a clean before/after comparison.
+      for(const key of ['metro','solar','green']) {
+        interventionGroups[key]=new THREE.Group(); interventionGroup.add(interventionGroups[key]);
+      }
+      const metro=interventionGroups.metro;
+      const viaduct=makeMaterial(0x65797b,.55,.35), cyanLine=new THREE.MeshBasicMaterial({color:0x68e0e4,transparent:true,opacity:.88});
+      // Metro extension: an elevated east-west link along the southern arterial with a second train.
+      box(metro,78,.30,2.1,viaduct,0,4.25,10,{castShadow:true});
+      for(const x of [-38,-28,-18,-8,2,12,22,32,42]) {
+        box(metro,.24,3.9,.30,viaduct,x,2.0,10,{castShadow:true});
+      }
+      for(const z of [9.35,10.65]) box(metro,78,.055,.07,cyanLine,0,4.44,z,{castShadow:false});
+      const station=makeMaterial(0x516b70,.36,.42);
+      box(metro,7.6,.16,3.8,station,0,4.55,10,{castShadow:false});
+      // Moving extension train.
+      interventionMetroTrain=new THREE.Group();
+      const body=makeMaterial(0xd7ddd5,.3,.52), glass=makeMaterial(0x173c48,.16,.58), stripe=makeMaterial(0x56cbd0,.28,.42,0x167c82,.24);
+      for(let i=0;i<2;i++) {
+        const x=i*3.1;
+        box(interventionMetroTrain,2.85,.78,1.35,body,x,0,0);
+        box(interventionMetroTrain,2.82,.09,1.36,stripe,x,-.28,0,{castShadow:false});
+        for(const side of [-1,1]) for(let w=0;w<3;w++) box(interventionMetroTrain,.5,.34,.035,glass,x-1+w*.95,.09,side*.69,{castShadow:false});
+      }
+      interventionMetroTrain.position.set(-40,4.95,10); metro.add(interventionMetroTrain);
+
+      // Rooftop solar: dark photovoltaic arrays on selected public/commercial roofs plus a utility-yard canopy.
+      const solar=interventionGroups.solar;
+      const panelMat=new THREE.MeshStandardMaterial({color:0x183c52,roughness:.24,metalness:.62,emissive:0x0b2738,emissiveIntensity:.18});
+      const gridMat=new THREE.MeshBasicMaterial({color:0x83c6d4,transparent:true,opacity:.45});
+      const solarTargets=CITY_DATA.filter(d=>['aurora-tower','helix-residences','innovation-campus','grand-library','ecoworks-lab'].includes(d.id));
+      for(const d of solarTargets) {
+        const roof=new THREE.Group(); roof.position.set(d.x,d.height+.30,d.z); solar.add(roof);
+        for(let row=0;row<2;row++) for(let col=0;col<3;col++) {
+          const panel=box(roof,1.48,.055,.92,panelMat,(col-1)*1.58,0,(row-.5)*1.12,{castShadow:false});
+          panel.rotation.x=-.16;
+          for(const k of [-.43,0,.43]) box(roof,1.42,.012,.018,gridMat,(col-1)*1.58,.037,(row-.5)*1.12+k,{castShadow:false,receiveShadow:false});
+        }
+      }
+      // Utility-yard canopy gives the intervention a clearly visible city-scale footprint.
+      box(solar,10,.16,5.2,viaduct,-39,3.0,20,{castShadow:true});
+      for(let x=-43;x<=-35;x+=2.5) for(let z=18;z<=22;z+=2) {
+        const panel=box(solar,2.1,.06,1.55,panelMat,x,3.12,z,{castShadow:false}); panel.rotation.x=-.20;
+      }
+      for(const x of [-43,-35]) for(const z of [18,22]) cylinder(solar,.06,.08,2.9,viaduct,x,1.48,z,8);
+
+      // Green corridor: landscaped linear park along the eastern edge, with trees and a pedestrian path.
+      const green=interventionGroups.green;
+      const grass=makeMaterial(0x476b4c,.98,.01), path=makeMaterial(0xb0aa96,.9,.02), bed=makeMaterial(0x35543d,.96,.01);
+      box(green,4.2,.10,66,grass,44,.02,0,{castShadow:false});
+      box(green,1.15,.07,62,path,43.8,.12,0,{castShadow:false});
+      for(let z=-28;z<=28;z+=7) {
+        box(green,1.9,.10,2.0,bed,45.4,.13,z,{castShadow:false});
+        makeTree(45.4,z,.70,(z+80)*2,green);
+      }
+      for(let z=-31;z<=31;z+=5.5) {
+        const light=cylinder(green,.025,.04,2.0,makeMaterial(0x737b73,.5,.4),42.1,1,z,8);
+        const head=box(green,.32,.045,.06,makeMaterial(0xe0d2a9,.35,.14,0x8d805f,.24),42.25,2.0,z,{castShadow:false});
+      }
+      interventionGroup.visible=true;
+      interventionGroups.metro.visible=false; interventionGroups.solar.visible=false; interventionGroups.green.visible=false;
+    }
+
+    function buildPulseNetwork() {
+      const pulseMaterial = new THREE.MeshBasicMaterial({ color: 0xffc56f, transparent: true, opacity: .8 });
+      for (const data of CITY_DATA) {
+        const node = new THREE.Mesh(new THREE.SphereGeometry(.22, 12, 8), pulseMaterial.clone());
+        node.position.set(data.x, Math.max(data.height + .8, 2.2), data.z);
+        pulseGroup.add(node);
+        const beacon = new THREE.Mesh(
+          new THREE.CylinderGeometry(.025, .09, 2.8, 8, 1, true),
+          new THREE.MeshBasicMaterial({ color: 0x69e4e6, transparent: true, opacity: .34, depthWrite: false })
+        );
+        beacon.position.set(data.x, node.position.y - 1.4, data.z);
+        pulseGroup.add(beacon);
+        pulseNodes.push({ data, node, beacon });
+      }
+      for (let i = 0; i < 3; i++) {
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(1, .07, 8, 80),
+          new THREE.MeshBasicMaterial({ color: i === 1 ? 0x5fe4e8 : 0xffbf69, transparent: true, opacity: .62, depthWrite: false })
+        );
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(12, .22, 2);
+        ring.scale.setScalar(.1);
+        pulseGroup.add(ring);
+        pulseRings.push(ring);
+      }
+      pulseGroup.visible = false;
+    }
+
+    function setupCity() {
+      createGroundAndRoads();
+      CITY_DATA.forEach((data, i) => buildBuilding(data, i));
+      // Secondary masses create believable urban blocks while remaining non-interactive background context.
+      CITY_DATA.forEach((data, i) => {
+        if(data.profile==='museum' || data.profile==='airport') return;
+        const offset = data.x < -20 ? -6.15 : data.x < 0 ? -5.65 : data.x < 20 ? 5.65 : 6.15;
+        const profile = i % 3 === 0 ? 'residential' : i % 3 === 1 ? 'campus' : 'tower';
+        buildContextBuilding(data.x + offset, data.z + ((i % 2) ? 1.1 : -1.1), 2.55 + (i%2)*.25, 3.55 + (i%3)*.18, 4.6 + (i%4)*.9, profile, i);
+      });
+      buildTrafficLayer();
+      buildEnergyLayer();
+      buildTransitLayer();
+      buildSignatureElements();
+      buildGrandFountain();
+      buildAirport();
+      buildHyperloop();
+      buildUndergroundLoop();
+      buildAirMobility();
+      buildInterventionElements();
+      buildPulseNetwork();
+    }
+
+    // REQ 3: search and category filters share the same predicate used to highlight the 3D scene.
+    function matchesFilter(data) {
+      const q = state.searchQuery.trim().toLowerCase();
+      const categoryMatch = state.categoryFilter === 'all' || data.category === state.categoryFilter;
+      const searchable = `${data.name} ${data.shortName} ${data.category} ${data.description} ${data.id}`.toLowerCase();
+      return categoryMatch && (!q || searchable.includes(q));
+    }
+    function filteredBuildings() { return CITY_DATA.filter(matchesFilter); }
+    function selectedData() { return CITY_DATA.find(d => d.id === state.selectedId) || CITY_DATA[0]; }
+    // REQ 6 + CITYVERSE simulation: interventions alter modeled system relationships, not just the labels.
+    function effectiveCongestion() {
+      const policyRelief = state.intervention === 'metro' ? 18 : state.intervention === 'green' ? 6 : 0;
+      return clamp(state.congestion - policyRelief, 0, 100);
+    }
+    function congestionFactor() { return .52 + (effectiveCongestion() / 100) * .78; }
+    function adjustedTraffic(data) {
+      const localFactor = congestionFactor();
+      const exposure = data.baseTraffic * localFactor;
+      return clamp(Math.round(exposure), 0, 100);
+    }
+    function adjustedEnergy(data) {
+      const load = data.energyMWh * (1 + effectiveCongestion() * .00065);
+      const renewableFactor = state.intervention === 'solar' ? .78 : state.intervention === 'green' ? .96 : 1;
+      return load * renewableFactor;
+    }
+    function deriveStats() {
+      const baseVisits = CITY_DATA.reduce((sum, d) => sum + d.dailyVisitors, 0);
+      const visits = baseVisits * (state.intervention === 'metro' ? 1.08 : state.intervention === 'green' ? 1.02 : 1);
+      const totalEnergy = CITY_DATA.reduce((sum, d) => sum + adjustedEnergy(d), 0);
+      const avgTraffic = CITY_DATA.reduce((sum, d) => sum + adjustedTraffic(d), 0) / CITY_DATA.length;
+      return { population: CITY_POPULATION, visits, energy: totalEnergy, traffic: Math.round(avgTraffic), activeAssets: filteredBuildings().length };
+    }
+
+    // Chart.js: single reusable chart, refreshed from the same shared state.
+    function initChart() {
+      const canvas = document.getElementById('energyChart');
+      const fallback = document.getElementById('chartFallback');
+      if (typeof Chart === 'undefined') { canvas.style.display = 'none'; fallback.style.display = 'grid'; return; }
+      chart = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'MWh / month', data: [], backgroundColor: [], borderColor: [], borderWidth: 1, borderRadius: 5, borderSkipped: false, barPercentage: .7, categoryPercentage: .76 }] },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: { duration: 220 },
+          plugins: {
+            legend: { display: false },
+            tooltip: { backgroundColor: '#0b1627', borderColor: 'rgba(153,183,218,.2)', borderWidth: 1, titleColor: '#eaf3ff', bodyColor: '#a8bad2', padding: 10, displayColors: false,
+              callbacks: { label: context => ` ${fmt(context.raw)} MWh / month` } }
+          },
+          scales: {
+            x: { beginAtZero: true, grid: { color: 'rgba(145,170,205,.10)' }, border: { display: false }, ticks: { color: '#7387a2', font: { size: 9 }, maxTicksLimit: 5 } },
+            y: { grid: { display: false }, border: { display: false }, ticks: { color: '#a9bad0', font: { size: 9 }, autoSkip: false } }
+          }
+        }
+      });
+    }
+    function updateChart() {
+      if (!chart) return;
+      const chosen = selectedData();
+      const current = [...CITY_DATA].sort((a, b) => b.energyMWh - a.energyMWh).slice(0, 6);
+      if (!current.some(d => d.id === chosen.id)) current[current.length - 1] = chosen;
+      current.sort((a, b) => b.energyMWh - a.energyMWh);
+      chart.data.labels = current.map(d => d.shortName);
+      chart.data.datasets[0].data = current.map(d => Math.round(adjustedEnergy(d)));
+      chart.data.datasets[0].backgroundColor = current.map(d => d.id === chosen.id ? 'rgba(95,228,232,.88)' : 'rgba(113,151,255,.49)');
+      chart.data.datasets[0].borderColor = current.map(d => d.id === chosen.id ? '#9ffbff' : 'rgba(113,151,255,.75)');
+      chart.update('none');
+      document.getElementById('chartFoot').textContent = `${state.intervention === 'none' ? 'Baseline' : state.intervention + ' intervention'} · modeled monthly demand · selected asset highlighted.`;
+    }
+
+    function renderResultList(matches) {
+      const list = document.getElementById('resultList');
+      list.innerHTML = '';
+      if (!matches.length) {
+        const li = document.createElement('li'); li.className = 'empty-results';
+        li.textContent = 'No locations match those filters. Try a different search term or choose “All categories”.';
+        list.appendChild(li); return;
+      }
+      for (const data of matches) {
+        const li = document.createElement('li'); li.className = 'result-item';
+        const button = document.createElement('button'); button.type = 'button';
+        button.className = `result-button${data.id === state.selectedId ? ' selected' : ''}`;
+        button.setAttribute('aria-pressed', data.id === state.selectedId ? 'true' : 'false');
+        button.innerHTML = `<span class="result-glyph" style="color:${data.color};border-color:${data.color}33;background:${data.color}12"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 16V7l6-3 6 3v9M2.5 16.5h15M7 9h1.5m3 0H13m-6 3h1.5m3 0H13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="result-copy"><span class="result-name"></span><span class="result-meta"></span></span><span class="result-arrow" aria-hidden="true">›</span>`;
+        button.querySelector('.result-name').textContent = data.name;
+        button.querySelector('.result-meta').textContent = `${data.category} · ${data.floors} floors`;
+        button.addEventListener('click', () => {
+          state.selectedId = data.id; state.focusRequest = data.id; updateApp();
+        });
+        li.appendChild(button); list.appendChild(li);
+      }
+    }
+
+    // REQ 2: selecting a location repaints its name, category, operating stats and scenario-adjusted metrics.
+    function renderSelectedInfo(data) {
+      const traffic = adjustedTraffic(data);
+      document.getElementById('selectedMicroLabel').textContent = `CITY ASSET / ${String(CITY_DATA.findIndex(d => d.id === data.id) + 1).padStart(2, '0')}`;
+      document.getElementById('selectedName').textContent = data.name;
+      document.getElementById('selectedAssetId').textContent = `ASSET-NC-${String(CITY_DATA.findIndex(d => d.id === data.id) + 1).padStart(2, '0')}`;
+      document.getElementById('selectedCategory').textContent = data.category;
+      document.getElementById('selectedCategoryDot').style.background = data.color;
+      document.getElementById('selectedSummary').textContent = data.description;
+      document.getElementById('selectedEnergy').innerHTML = `${fmt(adjustedEnergy(data))}<span class="metric-unit">MWh/mo</span>`;
+      document.getElementById('selectedFootfall').textContent = fmt(data.dailyVisitors);
+      document.getElementById('selectedHeight').innerHTML = `${data.floors}<span class="metric-unit">floors</span>`;
+      document.getElementById('selectedFloorHeight').textContent = `Approx. ${Math.round(data.height * 3.6)} m`;
+      document.getElementById('selectedTraffic').innerHTML = `${traffic}<span class="metric-unit">/ 100</span>`;
+      document.getElementById('selectedOccupancy').textContent = `${data.occupancy}%`;
+      document.getElementById('occupancyBar').style.width = `${data.occupancy}%`;
+      document.getElementById('selectedArea').textContent = `${fmt(data.area)} m²`;
+      document.getElementById('selectedCoords').textContent = `X ${data.x < 0 ? '−' : '+'}${Math.abs(data.x)} · Z ${data.z < 0 ? '−' : '+'}${Math.abs(data.z)}`;
+      document.getElementById('selectedSustainability').textContent = `${data.sustainability} / 100`;
+    }
+
+    function applyBuildingHighlights() {
+      const hasActiveFilter = state.searchQuery.trim().length > 0 || state.categoryFilter !== 'all';
+      for (const building of buildingsById.values()) {
+        const data = building.data;
+        const match = matchesFilter(data);
+        const isSelected = data.id === state.selectedId;
+        building.root.visible = true;
+        building.matchRing.visible = hasActiveFilter && match && !isSelected;
+        building.selectRing.visible = isSelected;
+        // Keep only the active asset labelled in overview; filtered matches receive labels for orientation.
+        building.label.visible = state.showLabels && (isSelected || (hasActiveFilter && match));
+        building.label.material.opacity = match || !hasActiveFilter ? .96 : .18;
+        for (const mat of building.materials) {
+          if (!mat.color || !mat.userData.baseColor) continue;
+          mat.color.copy(mat.userData.baseColor);
+          mat.emissive.copy(mat.userData.baseEmissive || new THREE.Color(0x000000));
+          mat.emissiveIntensity = mat.userData.baseEmissiveIntensity || 0;
+          if (hasActiveFilter && !match) {
+            mat.color.multiplyScalar(.24);
+            mat.emissiveIntensity *= .18;
+          } else if (isSelected) {
+            mat.emissive.lerp(new THREE.Color(CATEGORY_COLORS[data.category] || 0x5fe4e8), .20);
+            mat.emissiveIntensity = Math.max(.2, mat.emissiveIntensity);
+          } else if (hasActiveFilter && match) {
+            mat.emissive.lerp(new THREE.Color(CATEGORY_COLORS[data.category] || 0x5fe4e8), .06);
+            mat.emissiveIntensity = Math.max(.08, mat.emissiveIntensity);
+          }
+        }
+      }
+    }
+
+    function updateLayersAndScenario() {
+      trafficGroup.visible = state.layers.traffic;
+      energyGroup.visible = state.layers.energy;
+      transitGroup.visible = state.layers.transit || (state.presentationActive && true);
+      hyperloopGroup.visible = state.layers.hyperloop;
+      undergroundGroup.visible = state.layers.underground;
+      airMobilityGroup.visible = state.layers.airMobility;
+      streetLightGroup.visible = state.layers.streetlights;
+      for (const source of streetLightSources) {
+        source.light.visible = state.layers.streetlights;
+        source.pool.visible = state.layers.streetlights;
+        source.bulb.visible = state.layers.streetlights;
+        source.halo.visible = state.layers.streetlights;
+        source.cone.visible = state.layers.streetlights;
+      }
+      const activeCongestion = effectiveCongestion();
+      const trafficColor = new THREE.Color(0x5fe4e8).lerp(new THREE.Color(0xff6d5f), activeCongestion / 100);
+      for (const key of ['metro','solar','green']) interventionGroups[key].visible = state.intervention === key;
+      for (const mat of trafficFlowMaterials) {
+        mat.color.copy(trafficColor);
+        mat.opacity = .15 + activeCongestion / 100 * .47;
+      }
+      const filterActive = state.searchQuery.trim().length > 0 || state.categoryFilter !== 'all';
+      for (const indicator of energyIndicators) {
+        const indicatorMatches = matchesFilter(indicator.data);
+        indicator.beam.visible = !filterActive || indicatorMatches;
+        indicator.top.visible = !filterActive || indicatorMatches;
+        indicator.halo.visible = !filterActive || indicatorMatches;
+        const ratio = adjustedEnergy(indicator.data) / 680;
+        const newColor = new THREE.Color().setHSL(.35 - ratio * .33, .88, .58);
+        indicator.material.color.copy(newColor);
+        indicator.top.material.color.copy(newColor);
+        indicator.halo.material.color.copy(newColor);
+        const barHeight = .8 + ratio * 3.0;
+        indicator.beam.scale.y = barHeight;
+        indicator.beam.position.y = .3 + indicator.data.height + barHeight / 2;
+        indicator.top.position.y = .3 + indicator.data.height + barHeight;
+        indicator.halo.material.opacity = .55 + ratio * .4;
+      }
+      for (const button of document.querySelectorAll('[data-layer]')) {
+        const active = !!state.layers[button.dataset.layer];
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      }
+      document.getElementById('congestionValue').textContent = `${state.congestion}%${state.intervention === 'metro' ? ' → ' + activeCongestion + '%' : state.intervention === 'green' ? ' → ' + activeCongestion + '%' : ''}`;
+      document.getElementById('congestionSlider').value = String(state.congestion);
+      const note = activeCongestion < 30 ? 'Low effective congestion. Traffic lanes remain cool and vehicles move close to free-flow speed.' : activeCongestion < 65 ? 'Moderate network load. Road heat, vehicle speed and the city traffic index respond to this scenario.' : 'Heavy network load. Road overlays warm toward red, simulated vehicles slow down and exposure rises.';
+      document.getElementById('scenarioNote').textContent = note;
+      document.getElementById('interventionSelect').value = state.intervention;
+      const descriptions = {
+        none: '<strong>Baseline scenario.</strong> Explore the current city before applying an intervention.',
+        metro: '<strong>Metro extension active.</strong> A second elevated corridor connects the district. Modeled traffic pressure falls and daily accessibility rises.',
+        solar: '<strong>Rooftop solar active.</strong> Photovoltaic arrays appear on major roofs and the utility yard. Modeled grid demand falls by 22%.',
+        green: '<strong>Green corridor active.</strong> A tree-lined pedestrian spine appears on the eastern edge. Modeled traffic pressure and building cooling demand ease slightly.'
+      };
+      document.getElementById('interventionNote').innerHTML = descriptions[state.intervention];
+      const impacts = {
+        none: ['NO POLICY CHANGE'], metro: ['CONGESTION −18 pts','FOOTFALL +8%'], solar: ['GRID DEMAND −22%','ROOFTOP PV'], green: ['CONGESTION −6 pts','ENERGY LOAD −4%']
+      };
+      document.getElementById('impactStrip').innerHTML = impacts[state.intervention].map(x => `<span class="impact-chip">${x}</span>`).join('');
+      document.getElementById('labelsButton').textContent = `⊙ Labels: ${state.showLabels ? 'On' : 'Off'}`;
+      document.getElementById('labelsButton').setAttribute('aria-pressed', state.showLabels ? 'true' : 'false');
+      const streetLightsOn = state.layers.streetlights;
+      const streetLightButton = document.getElementById('streetLightButton');
+      streetLightButton.innerHTML = `<span aria-hidden="true">☼</span> Street lights: ${streetLightsOn ? 'On' : 'Off'}`;
+      streetLightButton.setAttribute('aria-pressed', streetLightsOn ? 'true' : 'false');
+    }
+
+    // REQ 5: the dashboard derives four city-level statistics from the shared state and hard-coded data.
+    function updateDashboard() {
+      const stats = deriveStats();
+      document.getElementById('kpiPopulation').textContent = `${(stats.population / 1000).toFixed(1)}k`;
+      document.getElementById('kpiFootfall').textContent = fmt(stats.visits);
+      document.getElementById('kpiTraffic').textContent = `${stats.traffic}%`;
+      document.getElementById('kpiTrafficFoot').textContent = stats.traffic < 35 ? 'Free-flow conditions' : stats.traffic < 65 ? 'Moderate network load' : 'Heavy network load';
+      document.getElementById('kpiEnergy').textContent = `${(stats.energy / 1000).toFixed(2)} GWh`;
+      document.getElementById('kpiEnergy').nextElementSibling.textContent = state.intervention === 'solar' ? 'After rooftop solar offset' : state.intervention === 'green' ? 'After cooling-load reduction' : 'Estimated monthly use';
+      document.getElementById('resultCount').textContent = `${stats.activeAssets} / ${CITY_DATA.length}`;
+      document.getElementById('activeLocationCount').textContent = String(stats.activeAssets);
+    }
+
+    // REQ 2: click selection and search results trigger a smooth camera lerp; OrbitControls supplies rotate/zoom.
+    function focusOn(id) {
+      if (id === 'overview') {
+        cameraTween = { position: new THREE.Vector3(108, 94, 124), target: new THREE.Vector3(24, 1.8, 5) };
+        return;
+      }
+      const building = buildingsById.get(id);
+      if (!building) return;
+      const data = building.data;
+      const focusTarget = new THREE.Vector3(data.x, Math.min(data.height * .43, 6.5), data.z);
+      const direction = camera.position.clone().sub(controls.target);
+      if (direction.lengthSq() < .001) direction.set(1, .8, 1);
+      direction.normalize();
+      const distance = data.profile === 'airport' ? 39 : clamp(12 + data.height * .42, 16, 25);
+      const nextPosition = focusTarget.clone().add(direction.multiplyScalar(distance));
+      nextPosition.y = Math.max(nextPosition.y, focusTarget.y + 7.5);
+      cameraTween = { position: nextPosition, target: focusTarget };
+    }
+
+    // REQ 7: one orchestrator refreshes scene styling, panels, charts, UI and camera intent.
+    function updateApp() {
+      const matches = filteredBuildings();
+      if (!matches.some(d => d.id === state.selectedId) && matches.length) {
+        // Keep selection useful and synchronized when a filter hides the current asset.
+        state.selectedId = matches[0].id;
+        if (state.focusRequest === null) state.focusRequest = matches[0].id;
+      }
+      applyBuildingHighlights();
+      updateLayersAndScenario();
+      updateDashboard();
+      renderResultList(matches);
+      renderSelectedInfo(selectedData());
+      updateChart();
+      if (state.focusRequest) {
+        focusOn(state.focusRequest);
+        state.focusRequest = null;
+      }
+    }
+
+    // CINEMATIC MODE: a short guided flythrough introduces the skyline, signature landmark, transit and park.
+    function startCinematicTour() {
+      const poses = [
+        { name:'Nova City / Aerial overview', desc:'A complete view of the commercial core, residential fabric, airport, sky mobility and green infrastructure.', pos:[118,91,-104], target:[24,2,5], duration:3.0 },
+        { name:'Civic gateway / Nova Beacon', desc:'The district landmark anchors the city and establishes its visual identity.', pos:[13,22,-47], target:[-8.5,6,-34.5], duration:2.5 },
+        { name:'Museum of Tomorrow', desc:'A sculptural hollow-ring cultural landmark with a planted public terrace.', pos:[58,28,20], target:[41,8,-5], duration:2.8 },
+        { name:'Hyperloop / Maglev corridor', desc:'A transparent elevated tube carries a streamlined magnetic-levitation pod above the city.', pos:[-2,33,-48], target:[0,16,-28], duration:2.8 },
+        { name:'Aerial mobility network', desc:'Autonomous electric air taxis circulate along an elevated city sky-lane.', pos:[25,39,49], target:[0,25,0], duration:2.8 },
+        { name:'Blue-green infrastructure', desc:'A landscaped public realm, rooftop gardens and a civic fountain animate the public space.', pos:[50,25,25], target:[41,1.5,9], duration:2.5 },
+        { name:'Nova International Airport', desc:'The elliptical terminal, control tower, runway, taxiway and passenger aircraft connect Nova City to the wider region.', pos:[105,34,67], target:[66,5,29], duration:2.8 },
+        { name:'Back to the city', desc:'The complete urban system is ready for interactive inspection.', pos:[108,94,124], target:[24,1.8,5], duration:3.0 }
+      ];
+      cameraTween = null;
+      state.presentationActive = true;
+      state.layers.transit = true;
+      state.layers.hyperloop = true;
+      state.layers.airMobility = true;
+      updateApp();
+      controls.enabled = false;
+      tourSequence = { poses, index:0 };
+      document.getElementById('tourButton').innerHTML = '<span aria-hidden="true">■</span> Exit tour';
+      document.getElementById('tourStatus').hidden = false;
+      beginTourStep();
+    }
+    function beginTourStep() {
+      if (!tourSequence) return;
+      const pose=tourSequence.poses[tourSequence.index];
+      tourTransition={
+        fromPosition:camera.position.clone(), fromTarget:controls.target.clone(),
+        toPosition:new THREE.Vector3(...pose.pos), toTarget:new THREE.Vector3(...pose.target),
+        elapsed:0, duration:pose.duration
+      };
+      document.getElementById('tourStage').textContent=pose.name;
+      document.getElementById('tourDescription').textContent=pose.desc;
+      document.getElementById('tourProgressBar').style.width=`${((tourSequence.index+1)/tourSequence.poses.length)*100}%`;
+    }
+    function stopCinematicTour() {
+      tourSequence=null; tourTransition=null; state.presentationActive=false;
+      controls.enabled=true;
+      document.getElementById('tourStatus').hidden=true;
+      document.getElementById('tourButton').innerHTML='<span aria-hidden="true">▷</span> Cinematic tour';
+      updateApp();
+    }
+
+    function toggleCityPulse() {
+      if (state.pulseActive) {
+        state.pulseActive = false;
+        pulseGroup.visible = false;
+        document.getElementById('pulseStatus').hidden = true;
+        document.getElementById('pulseButton').classList.remove('active');
+        document.getElementById('pulseButton').setAttribute('aria-pressed', 'false');
+        document.getElementById('pulseButton').innerHTML = '<span aria-hidden="true">✦</span> City pulse';
+        return;
+      }
+      state.pulseActive = true;
+      pulseStartedAt = elapsed;
+      pulseGroup.visible = true;
+      pulseRings.forEach(ring => ring.scale.setScalar(.1));
+      document.getElementById('pulseStatus').hidden = false;
+      document.getElementById('pulseButton').classList.add('active');
+      document.getElementById('pulseButton').setAttribute('aria-pressed', 'true');
+      document.getElementById('pulseButton').innerHTML = '<span aria-hidden="true">■</span> Stop pulse';
+      document.getElementById('pulseStage').textContent = 'Synchronizing city systems';
+      document.getElementById('pulseDescription').textContent = 'Scanning mobility, energy and public-realm nodes.';
+    }
+
+    function toggleUndergroundView() {
+      undergroundViewActive = !undergroundViewActive;
+      const button = document.getElementById('undergroundButton');
+      button.classList.toggle('active', undergroundViewActive);
+      button.setAttribute('aria-pressed', undergroundViewActive ? 'true' : 'false');
+      button.innerHTML = undergroundViewActive
+        ? '<span aria-hidden="true">↑</span> City view'
+        : '<span aria-hidden="true">⇣</span> Underground view';
+      if (groundMesh) {
+        const material = groundMesh.material;
+        groundMesh.visible = !undergroundViewActive;
+        material.transparent = undergroundViewActive;
+        material.opacity = 1;
+        material.needsUpdate = true;
+      }
+      if (undergroundViewActive) {
+        state.layers.underground = true;
+        cameraTween = { position: new THREE.Vector3(48, 7, 48), target: new THREE.Vector3(0, -2.2, 0) };
+      } else {
+        if (groundMesh) groundMesh.visible = true;
+        cameraTween = { position: new THREE.Vector3(108, 94, 124), target: new THREE.Vector3(24, 1.8, 5) };
+      }
+      updateApp();
+    }
+
+    // FULLSCREEN: expand only the 3D viewport and keep its overlays/controls available.
+    function updateFullscreenButton() {
+      const button = document.getElementById('fullscreenButton');
+      const active = document.fullscreenElement === scenePanel || scenePanel.classList.contains('scene-expanded');
+      button.innerHTML = active
+        ? '<span aria-hidden="true">⤢</span> Exit full screen'
+        : '<span aria-hidden="true">⛶</span> Full screen';
+      button.setAttribute('aria-pressed', String(active));
+      button.setAttribute('aria-label', active ? 'Exit 3D city fullscreen' : 'Expand 3D city to fullscreen');
+      button.title = active ? 'Exit fullscreen (Esc)' : 'Expand 3D city to fullscreen';
+    }
+
+    async function toggleSceneFullscreen() {
+      try {
+        if (document.fullscreenElement === scenePanel) {
+          await document.exitFullscreen();
+        } else if (!document.fullscreenElement && scenePanel.requestFullscreen) {
+          await scenePanel.requestFullscreen();
+        } else if (scenePanel.classList.contains('scene-expanded')) {
+          scenePanel.classList.remove('scene-expanded');
+          document.body.classList.remove('city-fullscreen');
+          updateFullscreenButton();
+          requestAnimationFrame(() => requestAnimationFrame(onResize));
+        } else if (!document.fullscreenElement) {
+          // Fallback for browsers without the Fullscreen API.
+          scenePanel.classList.add('scene-expanded');
+          document.body.classList.add('city-fullscreen');
+          updateFullscreenButton();
+          requestAnimationFrame(() => requestAnimationFrame(onResize));
+        }
+      } catch (error) {
+        console.warn('Fullscreen request was not granted:', error);
+        // If native fullscreen is unavailable or rejected, use the in-page expanded view.
+        if (!document.fullscreenElement) {
+          scenePanel.classList.toggle('scene-expanded');
+          document.body.classList.toggle('city-fullscreen', scenePanel.classList.contains('scene-expanded'));
+          updateFullscreenButton();
+          requestAnimationFrame(() => requestAnimationFrame(onResize));
+        }
+      }
+    }
+
+    function onResize() {
+      const width = Math.max(1, frame.clientWidth);
+      const height = Math.max(1, frame.clientHeight);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    }
+
+    // REQ 2: raycasting maps a canvas click to the selected building.
+    function handleCanvasClick(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const pointer = new THREE.Vector2(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(pickableMeshes, false);
+      if (!hits.length) return;
+      const id = hits[0].object.userData.buildingId;
+      if (id && buildingsById.has(id)) {
+        state.selectedId = id;
+        state.focusRequest = id;
+        updateApp();
+      }
+    }
+
+    function bindUI() {
+      document.getElementById('searchInput').addEventListener('input', event => {
+        state.searchQuery = event.target.value;
+        updateApp();
+      });
+      document.getElementById('categoryFilter').addEventListener('change', event => {
+        state.categoryFilter = event.target.value;
+        updateApp();
+      });
+      document.querySelectorAll('[data-layer]').forEach(button => button.addEventListener('click', () => {
+        const key = button.dataset.layer;
+        state.layers[key] = !state.layers[key];
+        updateApp();
+      }));
+      document.getElementById('congestionSlider').addEventListener('input', event => {
+        state.congestion = Number(event.target.value);
+        updateApp();
+      });
+      document.getElementById('interventionSelect').addEventListener('change', event => {
+        state.intervention = event.target.value;
+        if (state.intervention === 'metro') state.layers.transit = true;
+        updateApp();
+      });
+      const reset = () => {
+        if (undergroundViewActive) toggleUndergroundView();
+        state.focusRequest = 'overview'; updateApp();
+      };
+      document.getElementById('resetViewButton').addEventListener('click', reset);
+      document.getElementById('sceneResetButton').addEventListener('click', reset);
+      document.getElementById('labelsButton').addEventListener('click', () => {
+        state.showLabels = !state.showLabels; updateApp();
+      });
+      document.getElementById('tourButton').addEventListener('click', () => {
+        if (tourSequence) stopCinematicTour(); else startCinematicTour();
+      });
+      document.getElementById('pulseButton').addEventListener('click', toggleCityPulse);
+      document.getElementById('streetLightButton').addEventListener('click', () => {
+        state.layers.streetlights = !state.layers.streetlights;
+        updateApp();
+      });
+      document.getElementById('undergroundButton').addEventListener('click', toggleUndergroundView);
+      document.getElementById('fullscreenButton').addEventListener('click', toggleSceneFullscreen);
+      document.addEventListener('fullscreenchange', () => {
+        updateFullscreenButton();
+        // Fullscreen dimensions are applied after the browser's layout pass.
+        requestAnimationFrame(() => requestAnimationFrame(onResize));
+      });
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && scenePanel.classList.contains('scene-expanded') && !document.fullscreenElement) {
+          scenePanel.classList.remove('scene-expanded');
+          document.body.classList.remove('city-fullscreen');
+          updateFullscreenButton();
+          requestAnimationFrame(() => requestAnimationFrame(onResize));
+        }
+      });
+      controls.addEventListener('start', () => { cameraTween = null; });
+      renderer.domElement.addEventListener('pointerdown', event => {
+        lastPointerDown = { x: event.clientX, y: event.clientY, time: performance.now() };
+      });
+      renderer.domElement.addEventListener('pointerup', event => {
+        if (!lastPointerDown) return;
+        const dx = event.clientX - lastPointerDown.x; const dy = event.clientY - lastPointerDown.y;
+        const elapsedMs = performance.now() - lastPointerDown.time;
+        if (Math.hypot(dx, dy) < 5 && elapsedMs < 700) handleCanvasClick(event);
+        lastPointerDown = null;
+      });
+      renderer.domElement.addEventListener('pointercancel', () => { lastPointerDown = null; });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), .04);
+      elapsed += delta;
+      if (state.pulseActive) {
+        const pulseElapsed = elapsed - pulseStartedAt;
+        const pulseProgress = Math.min(1, pulseElapsed / 8);
+        pulseRings.forEach((ring, index) => {
+          const ringProgress = Math.max(0, Math.min(1, (pulseElapsed - index * .55) / 5.8));
+          ring.scale.setScalar(.1 + ringProgress * 38);
+          ring.material.opacity = .66 * (1 - ringProgress);
+        });
+        pulseNodes.forEach((entry, index) => {
+          const nodePhase = (pulseElapsed * 1.8 - index * .12) % 1;
+          const glow = .45 + Math.max(0, Math.sin(nodePhase * Math.PI)) * 1.5;
+          entry.node.scale.setScalar(glow);
+          entry.node.material.opacity = .48 + Math.min(1, glow / 2) * .45;
+          entry.beacon.material.opacity = .18 + Math.min(1, glow / 2) * .3;
+        });
+        document.getElementById('pulseProgressBar').style.width = `${pulseProgress * 100}%`;
+        document.getElementById('pulseStage').textContent = pulseProgress < .35 ? 'Synchronizing city systems' : pulseProgress < .7 ? 'Finding hidden connections' : 'City intelligence online';
+        document.getElementById('pulseDescription').textContent = pulseProgress < .35 ? 'Scanning mobility, energy and public-realm nodes.' : pulseProgress < .7 ? 'Mapping how every district responds as one living network.' : `All ${CITY_DATA.length} assets are communicating across the digital twin.`;
+        if (pulseProgress >= 1) {
+          state.pulseActive = false;
+          pulseGroup.visible = false;
+          document.getElementById('pulseStatus').hidden = true;
+          document.getElementById('pulseButton').classList.remove('active');
+          document.getElementById('pulseButton').setAttribute('aria-pressed', 'false');
+          document.getElementById('pulseButton').innerHTML = '<span aria-hidden="true">✦</span> City pulse';
+        }
+      }
+      for (const source of streetLightSources) {
+        const shimmer = .86 + Math.sin(elapsed * 2.2 + source.phase) * .1;
+        source.light.intensity = state.layers.streetlights ? 1.45 * shimmer : 0;
+        source.pool.material.opacity = state.layers.streetlights ? .12 + shimmer * .055 : 0;
+        source.halo.material.opacity = state.layers.streetlights ? .14 + shimmer * .08 : 0;
+        source.cone.material.opacity = state.layers.streetlights ? .045 + shimmer * .025 : 0;
+        source.bulb.scale.setScalar(state.layers.streetlights ? 1 + Math.sin(elapsed * 2.2 + source.phase) * .08 : .8);
+      }
+      for (const stream of waterfallStreams) {
+        const surge = .92 + Math.sin(elapsed * 5.2 + stream.phase) * .08;
+        stream.mesh.scale.y = stream.base * surge;
+        stream.mesh.material.opacity = .46 + surge * .12;
+      }
+      for (const ripple of waterfallRipples) {
+        const phase = (elapsed * .42 + ripple.phase) % 1;
+        const scale = .55 + phase * 1.65;
+        ripple.mesh.scale.set(scale * 1.8, scale * .68, 1);
+        ripple.mesh.material.opacity = .42 * (1 - phase);
+      }
+      if (state.layers.traffic) {
+        const speedFactor = .32 + (1 - effectiveCongestion() / 100) * .68;
+        for (const car of trafficCars) {
+          const p = car.userData;
+          const dist = ((elapsed * p.speed * speedFactor * 4.4 * p.dir + p.offset + 42) % 84 + 84) % 84 - 42;
+          if (p.path === 'x') { car.position.set(dist, 0, p.fixed); car.rotation.y = p.dir > 0 ? 0 : Math.PI; }
+          else { car.position.set(p.fixed, 0, ((elapsed * p.speed * speedFactor * 4.1 * p.dir + p.offset + 34) % 68 + 68) % 68 - 34); car.rotation.y = p.dir > 0 ? -Math.PI / 2 : Math.PI / 2; }
+        }
+      }
+      if (tourSequence && tourTransition) {
+        tourTransition.elapsed += delta;
+        const raw=Math.min(1,tourTransition.elapsed/tourTransition.duration);
+        const t=raw*raw*(3-2*raw);
+        camera.position.lerpVectors(tourTransition.fromPosition,tourTransition.toPosition,t);
+        controls.target.lerpVectors(tourTransition.fromTarget,tourTransition.toTarget,t);
+        if(raw>=1) {
+          const completed=tourSequence.index;
+          tourSequence.index++;
+          if(tourSequence.index>=tourSequence.poses.length) stopCinematicTour();
+          else beginTourStep();
+        }
+      } else if (cameraTween) {
+        camera.position.lerp(cameraTween.position, .075);
+        controls.target.lerp(cameraTween.target, .075);
+        if (camera.position.distanceTo(cameraTween.position) < .11 && controls.target.distanceTo(cameraTween.target) < .11) {
+          camera.position.copy(cameraTween.position); controls.target.copy(cameraTween.target); cameraTween = null;
+        }
+      }
+      for (const building of buildingsById.values()) {
+        if (building.selectRing.visible) { const pulse = 1 + Math.sin(elapsed * 2.4) * .018; building.selectRing.scale.copy(building.selectRing.userData.baseScale || new THREE.Vector3(1,1,1)).multiplyScalar(pulse); }
+      }
+      if (state.layers.energy) {
+        for (const indicator of energyIndicators) indicator.halo.rotation.z += delta * .45;
+      }
+      for(const ring of animatedRings) ring.rotation.y += delta * .14;
+      for(let i=0;i<turbineRotors.length;i++) turbineRotors[i].rotation.z += delta * (.65 + i*.12);
+      for(const fountain of fountainJets) {
+        const wave=.5+.5*Math.sin(elapsed*2.2+fountain.phase);
+        fountain.mesh.scale.y=.45+wave*.9;
+        fountain.mesh.position.y=fountain.base + (wave-.5)*.24;
+      }
+      if(metroTrain) metroTrain.position.z=((elapsed*4.2+35)%70)-35;
+      if(interventionMetroTrain) interventionMetroTrain.position.x=((elapsed*5.4+43)%86)-43;
+      if(hyperloopTrain && state.layers.hyperloop) hyperloopTrain.position.x=((elapsed*9.0+44)%88)-44;
+      if(undergroundPod && undergroundCurve && state.layers.underground) {
+        const podT = (elapsed * .022) % 1;
+        const podPosition = undergroundCurve.getPointAt(podT);
+        const podAhead = undergroundCurve.getPointAt((podT + .006) % 1);
+        undergroundPod.position.copy(podPosition);
+        undergroundPod.lookAt(podAhead);
+      }
+      if(airportAircraft) {
+        airportAircraft.position.x=70 + (((elapsed*5.2+28)%56)-28);
+        airportAircraft.position.y=1.72 + Math.sin(elapsed*1.15)*.08;
+      }
+      if(state.layers.airMobility) {
+        for(const flyer of airCars) {
+          const t=(flyer.phase+elapsed*flyer.speed)%1;
+          const point=flyer.curve.getPointAt(t);
+          const ahead=flyer.curve.getPointAt((t+.003)%1);
+          point.y += Math.sin(elapsed*1.8+flyer.phase*9)*.25;
+          flyer.mesh.position.copy(point); flyer.mesh.lookAt(ahead);
+          flyer.rotors.forEach((rotor,i)=>rotor.rotation.y += delta*(i%2?12:-12));
+        }
+      }
+      for(const ripple of fountainRipples) {
+        const phase=(elapsed*.36+ripple.phase)%1;
+        const scale=.45+phase*2.1;
+        ripple.mesh.scale.set(scale,scale,1);
+        ripple.mesh.material.opacity=.42*(1-phase);
+      }
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Boot sequence: build the entire city before binding controls and rendering.
+    setupCity();
+    initChart();
+    bindUI();
+    updateFullscreenButton();
+    updateApp();
+    onResize();
+    window.addEventListener('resize', onResize);
+    if ('ResizeObserver' in window) { sceneResizeObserver = new ResizeObserver(onResize); sceneResizeObserver.observe(frame); }
+    animate();
+  </script>
+</body>
+</html>
